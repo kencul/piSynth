@@ -9,7 +9,7 @@ Build and run:
 cd build
 cmake ..
 ninja
-./bin/03_midi_synth
+./bin/03_simple_midi_synth
 ```
 
 Launching will open the audio device and read MIDI controller based on values in `config.hpp`.
@@ -26,7 +26,7 @@ inline constexpr const char *MIDI_DEVICE  = "KOMPLETE KONTROL";
 ## Structure
 
 ```
-03_midi_synth/
+03_simple_midi_synth/
 ├── config.hpp              # all constants — sample rate, period, devices, amplitude
 ├── main.cpp                # entry point, owns shared state, signal handling, wires classes
 ├── osc/
@@ -131,7 +131,7 @@ double new_freq = frequency.load();
 
 ---
 
-**5. Redundant oscillator updates**
+**3. Redundant oscillator updates**
 
 Calling `osc.set_frequency()` every period recalculates `phase_inc` via `pow` and division on every audio loop iteration, even when the frequency hasn't changed.
 
@@ -154,7 +154,7 @@ while (running.load()) {
 
 ---
 
-**6. Clean shutdown on Ctrl+C**
+**4. Clean shutdown on Ctrl+C**
 
 Without signal handling, Ctrl+C sends `SIGINT` which kills the process immediately. This bypasses `stop()`, skipping `snd_pcm_drain`, and leaving the ALSA device in an undefined state. Instead, I catch the signal, set a flag, let the main thread exit the wait loop and call `stop()` on both classes normally.
 
@@ -179,7 +179,7 @@ midi.stop();
 
 ---
 
-**7. Safe repeated stop calls**
+**5. Safe repeated stop calls**
 
 `stop()` is called by the destructor, but could also be called manually before the object goes out of scope. Calling `thread.join()` on an already-joined thread is undefined behaviour and crashes. `joinable()` returns false after a thread has been joined or was never started, making `stop()` safe to call any number of times.
 
