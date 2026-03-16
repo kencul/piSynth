@@ -24,5 +24,5 @@ private:
 	int age_counter                               = 0;
 
 	std::array<float, Config::PERIOD_SIZE> mix = {};
-    std::array<float, Config::PERIOD_SIZE> tmp = {};
+	std::array<float, Config::PERIOD_SIZE> tmp = {};
 };
