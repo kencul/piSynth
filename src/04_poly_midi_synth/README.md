@@ -94,10 +94,15 @@ while (auto ev = event_queue.pop())
         │       → free voice first
         │       → releasing voice second
         │       → steal oldest third
-        │     voice.trigger(note, hz, velocity)
-        │       → envelope.trigger() → Stage::Attack
-        │       → osc.set_frequency(hz)
-        │       → velocity_gain = velocity / 127.0f
+        │     if voice is active:
+        │       voice.steal(note, hz, velocity)
+        │         → pending = { note, hz, velocity }
+        │         → envelope.kill() → Stage::Kill
+        │     else:
+        │       voice.trigger(note, hz, velocity)
+        │         → envelope.trigger() → Stage::Attack
+        │         → osc.set_frequency(hz)
+        │         → velocity_gain = velocity / 127.0f
         │
         └── NoteOff
               find_voice(note)
@@ -118,10 +123,13 @@ voice_manager.process(buf, frames, channels)
         │        → Decay:   level -= decay_rate
         │        → Sustain: level unchanged
         │        → Release: level -= release_rate
+        │        → Kill:    level -= kill_rate (fixed ramp over KILL_SAMPLES)
         │        → Idle:    level = 0.0
         │      mix[i] += tmp[i] * VOICE_GAIN * velocity_gain * envelope_gain
         │
-        │  deactivate voices where envelope.is_idle()
+        │  for idle voices:
+        │    if pending note exists → trigger it (frequency/velocity applied at silence)
+        │    else → deactivate voice
         │
         │  for each frame:
         │    clamp mix[i] to [-1.0, 1.0]
@@ -147,3 +155,4 @@ These two solve the basic issues with the previous simple version, setting the f
 
 Voice gain staging was difficult to tune. Each voice should be louder when less voices are playing to try to make sure the overall volume is consistent. I explored many options, such as linear gain staging, smoothing out the gain staging, and square root gain staging with soft saturation. However, I didn't like how any of the solutions sounded, so there is no gain staging. Instead, each voice is `1/voice` amplitude loud. Thus, setting the max number of voices lower makes each voice louder. This means that I just crank up the gain on my interface when I have a high number of voices, and adjust the velocity of notes if I am playing many notes at once.
 
+Voice stealing is implemented in a way that avoids clicks. When a new note arrives and no voices are free, the priority of the voice stolen is a releasing voice, then an active voice. In both cases, the voice enters a "kill envelope" where the voice fades in silence over `KILL_SAMPLES` (configured in `config.hpp`). The new note's data is stored in a `PendingNote` struct in the voice, and is applied once the voice reaches idle.
