@@ -2,15 +2,29 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <iostream>
 
 void VoiceManager::handle(const NoteEvent &ev) {
 	if (ev.type == NoteEvent::Type::NoteOn) {
 		int idx = allocate_voice();
-		voices[idx].trigger(ev.note, midi_to_hz(ev.note), ev.velocity);
+
+		if (voices[idx].active) {
+			// voice is in use, fade it out first, then trigger the new note
+			voices[idx].steal(ev.note, midi_to_hz(ev.note), ev.velocity);
+			std::cout << "Stealing voice " << idx << " for note " << ev.note << "\n";
+		} else
+			voices[idx].trigger(ev.note, midi_to_hz(ev.note), ev.velocity);
+
 		voice_age[idx] = age_counter++;
 	} else {
-		int idx = find_voice(ev.note);
-		if (idx >= 0) voices[idx].release();
+		// release all voices playing the incoming note
+		for (int i = 0; i < Config::MAX_VOICES; ++i) {
+			if (voices[i].active && voices[i].note == ev.note) voices[i].release();
+
+			// NoteOff arrived before pending note fired
+			if (voices[i].pending.valid && voices[i].pending.note == ev.note)
+				voices[i].pending.valid = false;
+		}
 	}
 }
 
@@ -39,9 +53,14 @@ void VoiceManager::process(int32_t *buf, int frames, int channels) {
 		for (int i = 0; i < frames; ++i) mix[i] += tmp[i] * gain * v.envelope.process();
 	}
 
-	// deactivate voices whose envelope has completed release this period
-	for (auto &v : voices)
-		if (v.active && v.envelope.is_idle()) v.active = false;
+	// check idle voices and trigger pending notes
+	for (auto &v : voices) {
+		if (!v.active || !v.envelope.is_idle()) continue;
+
+		if (v.pending.valid) v.trigger(v.pending.note, v.pending.hz, v.pending.velocity);
+		else
+			v.active = false;
+	}
 
 	for (int i = 0; i < frames; ++i) {
 		int32_t sample =
@@ -69,12 +88,6 @@ int VoiceManager::allocate_voice() {
 		}
 	}
 	return oldest_idx;
-}
-
-int VoiceManager::find_voice(int note) {
-	for (int i = 0; i < Config::MAX_VOICES; ++i)
-		if (voices[i].active && voices[i].note == note) return i;
-	return -1;
 }
 
 double VoiceManager::midi_to_hz(int note) { return 440.0 * std::pow(2.0, (note - 69) / 12.0); }

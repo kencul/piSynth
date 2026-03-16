@@ -12,13 +12,14 @@ public:
 
 	void trigger(); // call on Note On
 	void release(); // call on Note Off
+	void kill();
 
 	float process(); // call per sample, returns gain multiplier [0.0, 1.0]
 	bool is_idle();  // true when envelope has finished release
 	bool is_releasing() const;
 
 private:
-	enum class Stage { Idle, Attack, Decay, Sustain, Release };
+	enum class Stage { Idle, Attack, Decay, Sustain, Release, Kill };
 
 	// converts a time in ms to a per-sample increment
 	float ms_to_rate(float ms) const;
@@ -30,6 +31,7 @@ private:
 	float decay_rate;
 	float sustain_level;
 	float release_rate;
+	float kill_rate;
 
 	float sample_rate;
 };

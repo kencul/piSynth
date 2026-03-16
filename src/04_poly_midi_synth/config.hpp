@@ -22,6 +22,8 @@ inline constexpr int MAX_VOICES = 4;
 // ADSR defaults
 inline constexpr float DEFAULT_ATTACK  = 10.0f;  // ms
 inline constexpr float DEFAULT_DECAY   = 100.0f; // ms
-inline constexpr float DEFAULT_SUSTAIN = 0.7f;   // level 0-1
+inline constexpr float DEFAULT_SUSTAIN = 0.3f;   // level 0-1
 inline constexpr float DEFAULT_RELEASE = 300.0f; // ms
+
+inline constexpr int KILL_SAMPLES = 64;
 } // namespace Config

@@ -23,6 +23,11 @@ void ADSR::release() {
 	if (stage != Stage::Idle) stage = Stage::Release;
 }
 
+void ADSR::kill() {
+	kill_rate = level / Config::KILL_SAMPLES; // ramp from current level to 0
+	stage     = Stage::Kill;
+}
+
 float ADSR::process() {
 	switch (stage) {
 		case Stage::Attack:
@@ -49,6 +54,15 @@ float ADSR::process() {
 			level -= release_rate;
 			if (level <= 0.0f) {
 				level = 0.0f;
+				stage = Stage::Idle;
+			}
+			break;
+
+		case Stage::Kill:
+			level -= kill_rate;
+			if (level <= 0.0f) {
+				level = 0.0f;
+
 				stage = Stage::Idle;
 			}
 			break;

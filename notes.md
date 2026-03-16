@@ -117,8 +117,6 @@ sudo apt install build-essential gdb cmake libasound2-dev
 
 This is possible because the Pi 5 I'm using is powerful enough to host a VSCode server and compile on its own. This is not possible when using a weaker board.
 
-To practice, I am also using the Vim extension in VSCode, to see if I can get familiar with it.
-
 ## Project setup
 
 Make a `CMakeList.txt` to set up the project.
