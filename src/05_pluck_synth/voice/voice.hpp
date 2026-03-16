@@ -28,7 +28,7 @@ struct Voice {
 
 		osc.set_frequency(hz);
 		osc.set_decay(60000.0f / Config::DEFAULT_DECAY_MS);
-		osc.trigger(0.1f, 0.1f, amplitude);
+		osc.trigger(Config::PLUCK_POS, Config::PICKUP_POS, amplitude);
 		envelope.trigger();
 		pending.valid = false;
 	}

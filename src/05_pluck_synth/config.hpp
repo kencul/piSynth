@@ -19,14 +19,17 @@ inline constexpr const char *MIDI_DEVICE  = "KOMPLETE KONTROL";
 
 inline constexpr int MAX_VOICES = 8;
 
-// ADSR defaults
-inline constexpr float DEFAULT_RELEASE = 100.0f; // ms
+// ADSR Envelope
+inline constexpr float ATTACK_TIME  = 1.0f;   // ms
+inline constexpr float RELEASE_TIME = 100.0f; // ms
+
+// String Valules
+inline constexpr float PLUCK_POS  = 0.05f; // 0-1, relative position of the pluck on the string
+inline constexpr float PICKUP_POS = 0.3f; // 0-1
 
 inline constexpr float KILL_MS = 1.5f; // ~64 samples at 44100Hz
 
 inline constexpr float DEFAULT_DECAY_MS = 30000.0f; // time to reach -60dB
 
-inline constexpr float GAIN_SMOOTH_MS   = 3000.0f; // gain rise time
-inline constexpr float GAIN_ATTACK_MS   = 10.0f;   // gain drop time
 inline constexpr float SATURATION_DRIVE = 1.0f;    // minimum 1.0f
 } // namespace Config

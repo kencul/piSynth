@@ -16,13 +16,6 @@ void Pluck::set_decay(float decay_db_per_sec) {
 	feedback_gain = std::min((G / A) * 0.5f, 0.4995f);
 }
 
-float Pluck::next_noise() {
-	rng_state ^= rng_state << 13;
-	rng_state ^= rng_state >> 17;
-	rng_state ^= rng_state << 5;
-	return (static_cast<float>(rng_state) / 2147483648.0f) - 1.0f;
-}
-
 void Pluck::trigger(float pluck_pos, float pickup_pos, float amplitude) {
 	pickup_frac = pickup_pos;
 
@@ -45,6 +38,8 @@ void Pluck::trigger(float pluck_pos, float pickup_pos, float amplitude) {
 void Pluck::clear() {
 	delay_line.fill(0.0f);
 	prev      = 0.0f;
+	dc_x      = 0.0f;
+	dc_y      = 0.0f;
 	write_pos = 0;
 }
 
@@ -68,6 +63,10 @@ void Pluck::process(float *buf, int frames) {
 		prev                  = from_line;
 		write_pos             = (write_pos + 1) & (MAX_DELAY - 1);
 
-		buf[i] = output;
+		// remove DC: leaky integrator tracks the mean, subtract it
+		float y = output - dc_x + 0.9999f * dc_y;
+		dc_x    = output;
+		dc_y    = y;
+		buf[i]  = y;
 	}
 }

@@ -1,13 +1,17 @@
 #include "adsr.hpp"
 #include <algorithm>
 
-ADSR::ADSR(float sample_rate) : sample_rate(sample_rate) { set_release(Config::DEFAULT_RELEASE); }
+ADSR::ADSR(float sample_rate) : sample_rate(sample_rate) {
+	set_release(Config::RELEASE_TIME);
+	set_attack(Config::ATTACK_TIME);
+}
 
+void ADSR::set_attack(float ms) { attack_rate = ms_to_rate(ms); }
 void ADSR::set_release(float ms) { release_rate = ms_to_rate(ms); }
 
 void ADSR::trigger() {
-	level = 1.0f;
-	stage = Stage::Sustain;
+	level = 0.0f;
+	stage = Stage::Attack;
 }
 
 void ADSR::release() {
@@ -23,6 +27,14 @@ void ADSR::kill() {
 
 float ADSR::process() {
 	switch (stage) {
+		case Stage::Attack:
+			level += attack_rate;
+			if (level >= 1.0f) {
+				level = 1.0f;
+				stage = Stage::Sustain;
+			}
+			break;
+
 		case Stage::Sustain: break;
 
 		case Stage::Release:

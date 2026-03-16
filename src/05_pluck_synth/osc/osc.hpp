@@ -1,8 +1,8 @@
 #pragma once
 #include "../config.hpp"
+#include <array>
 #include <cmath>
 #include <cstdint>
-#include <array>
 
 class Pluck {
 public:
@@ -31,6 +31,6 @@ private:
 	double sample_rate;
 	double frequency = 440.0;
 
-	uint32_t rng_state = 22695477u;
-	float next_noise();
+	float dc_x = 0.0f; // previous input
+	float dc_y = 0.0f; // previous output
 };

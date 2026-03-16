@@ -9,7 +9,6 @@ void VoiceManager::handle(const NoteEvent &ev) {
 		int idx = allocate_voice();
 		if (voices[idx].active) {
 			voices[idx].steal(ev.note, midi_to_hz(ev.note), ev.velocity);
-			std::cout << "Stealing voice " << idx << " for note " << ev.note << "\n";
 		} else
 			voices[idx].trigger(ev.note, midi_to_hz(ev.note), ev.velocity);
 		voice_age[idx] = age_counter++;
@@ -37,7 +36,7 @@ void VoiceManager::process(int32_t *buf, int frames, int channels) {
 	for (auto &v : voices) {
 		if (!v.active) continue;
 		v.osc.process(tmp.data(), frames);
-		for (int i = 0; i < frames; ++i) mix[i] += tmp[i] * v.velocity_gain * v.envelope.process();
+		for (int i = 0; i < frames; ++i) mix[i] += tmp[i] * v.envelope.process();
 	}
 
 	// check idle voices and trigger pending notes or clear and deactivate

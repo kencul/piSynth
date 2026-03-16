@@ -126,6 +126,7 @@ voice_manager.process(buf, frames, channels)
         │      → natural decay built into the feedback gain
         │    for each frame:
         │      envelope_gain = envelope.process()
+        │        → Attack: level += attack_rate
         │        → Sustain: level = 1.0 (holds until release)
         │        → Release: level -= release_rate
         │        → Kill:    level -= kill_rate
@@ -195,10 +196,14 @@ saturation character when voices push the signal hard.
 
 ### ADSR as a Release Gate
 
-KS has its own physical amplitude envelope built into the decay model, so the ADSR is simplified to three stages: Sustain (holds at 1.0 after trigger), Release (linear fade to zero on note-off), and Kill (fast fade used for voice stealing). Attack and Decay stages are removed entirely.
+KS has its own physical amplitude envelope built into the decay model, so the ADSR is simplified to four stages: Attack (linear ramp from 0.0 to 1.0), Sustain (holds at 1.0 after trigger), Release (linear fade to zero on note-off), and Kill (fast fade used for voice stealing). A inperceptively short attack is required to get rid of a click when the note turns on. Decay stage is removed entirely.
 
 ### Voice Stealing
 
 Stealing an active voice has the same behavior as the previous program, entering a kill stage, then triggering the pending note when the voice reaches silence.
 
 However, as the delay line of the string model doesn't match the ADSR behavior, when a voice goes idle naturally (after release), `osc.clear()` zeroes the delay line before deactivating, preventing stale string content from leaking into the next note triggered on that voice.
+
+### DC Blocker
+
+As waveguides are prone to accumulating DC, a simple highpass filter is implemented at the end of `process()` in `osc.cpp`. 
