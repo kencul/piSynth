@@ -1,38 +1,41 @@
-# 04 Poly MIDI Synth
+# 05 Pluck Synth
 
-A polyphonic synth that plays a sine wave from a MIDI input. Has ADSR enveloping for each voice.
+A polyphonic pluck-string model synthesizer driven by MIDI input.
 
-## Usage 
+## Usage
 
 Build and run:
 ```bash
 cd build
 cmake ..
 ninja
-./bin/05_karplus_strong_synth
+./bin/05_pluck_synth
 ```
 
 Launching will open the audio device and read MIDI controller based on values in `config.hpp`.
 
-From there it responds immediately to your keyboard. Press a key and the sine tone plays at that pitch. Ctrl+C shuts everything down cleanly.
+From there it responds immediately to your keyboard. Press a key and the plucked string sounds at that pitch. Ctrl+C shuts everything down cleanly.
 
-To change the audio device or the MIDI source, edit `config.hpp`
+To change the audio device or the MIDI source, edit `config.hpp`:
 
 ```cpp
 inline constexpr const char *AUDIO_DEVICE = "hw:UR22mkII";
 inline constexpr const char *MIDI_DEVICE  = "KOMPLETE KONTROL";
 ```
 
-Also adjust the number of voices and ADSR values in `config.hpp`
+Adjust voices, decay, and release in `config.hpp`:
 
 ```cpp
-inline constexpr int MAX_VOICES = 4;
+inline constexpr int   MAX_VOICES       = 8;
+inline constexpr float DEFAULT_RELEASE  = 100.0f;  // ms: envelope release on note off
+inline constexpr float DEFAULT_DECAY_MS = 30000.0f; // ms: KS string T60 decay time
+inline constexpr float KILL_MS          = 1.5f;     // ms: voice steal fade time
+```
 
-// ADSR defaults
-inline constexpr float DEFAULT_ATTACK  = 10.0f;  // ms
-inline constexpr float DEFAULT_DECAY   = 100.0f; // ms
-inline constexpr float DEFAULT_SUSTAIN = 0.7f;   // level 0-1
-inline constexpr float DEFAULT_RELEASE = 300.0f; // ms
+Adjust the saturation ceiling:
+
+```cpp
+inline constexpr float SATURATION_DRIVE = 1.0f; // must be >= 1.0
 ```
 
 ## Structure
@@ -44,9 +47,9 @@ main()
 ├── creates RingBuffer<NoteEvent, 64>
 ├── creates AudioEngine(event_queue)
 │     └── creates VoiceManager
-│           └── creates Voice[16]
-│                 ├── Oscillator
-│                 └── ADSR
+│           └── creates Voice[8]
+│                 ├── Pluck (Plucked-string model)
+│                 └── ADSR  (release gate only)
 ├── creates MidiReader(event_queue)
 ├── audio.open()  → configures ALSA PCM device
 ├── midi.open()   → connects to ALSA sequencer
@@ -57,7 +60,7 @@ main()
 - **Realtime Data Flow**
 
 ```
-Physical key press on M32 (MIDI controller)
+Physical key press on MIDI controller
         ↓
 USB MIDI packet → kernel snd-usb-audio driver
         ↓
@@ -100,12 +103,14 @@ while (auto ev = event_queue.pop())
         │         → envelope.kill() → Stage::Kill
         │     else:
         │       voice.trigger(note, hz, velocity)
-        │         → envelope.trigger() → Stage::Attack
+        │         → amplitude = velocity/127 / sqrt(MAX_VOICES)
         │         → osc.set_frequency(hz)
-        │         → velocity_gain = velocity / 127.0f
+        │         → osc.set_decay(60000 / DEFAULT_DECAY_MS)
+        │         → osc.trigger(pluck_pos, pickup_pos, amplitude)
+        │             → seeds delay line with triangle at amplitude
+        │         → envelope.trigger() → Stage::Sustain (level = 1.0)
         │
         └── NoteOff
-              find_voice(note)
               voice.release()
                 → envelope.release() → Stage::Release
                 → active stays true until envelope idles
@@ -116,23 +121,24 @@ voice_manager.process(buf, frames, channels)
         │
         │  for each active voice:
         │    osc.process(tmp, frames)
-        │      → sine samples in [-1.0, 1.0]
+        │      → reads delay line at pickup position (interpolated)
+        │      → feedback: (sample + prev) * feedback_gain written back
+        │      → natural decay built into the feedback gain
         │    for each frame:
         │      envelope_gain = envelope.process()
-        │        → Attack:  level += attack_rate
-        │        → Decay:   level -= decay_rate
-        │        → Sustain: level unchanged
+        │        → Sustain: level = 1.0 (holds until release)
         │        → Release: level -= release_rate
-        │        → Kill:    level -= kill_rate (fixed ramp over KILL_SAMPLES)
+        │        → Kill:    level -= kill_rate
         │        → Idle:    level = 0.0
-        │      mix[i] += tmp[i] * VOICE_GAIN * velocity_gain * envelope_gain
+        │      mix[i] += tmp[i] * velocity_gain * envelope_gain
         │
         │  for idle voices:
-        │    if pending note exists → trigger it (frequency/velocity applied at silence)
-        │    else → deactivate voice
+        │    if pending note exists → trigger it
+        │    else → osc.clear(), voice.active = false
         │
         │  for each frame:
-        │    clamp mix[i] to [-1.0, 1.0]
+        │    tanh(mix[i] * SATURATION_DRIVE) / SATURATION_DRIVE
+        │    clamp to [-1.0, 1.0]
         │    scale to 24-bit value in S32_LE container
         │    write to buf[i * channels + ch] for each channel
         ↓
@@ -147,12 +153,52 @@ Audio output
 
 ## Code Breakdown
 
-This program fleshes out the previous one, by implementing polyphony: pressing multiple keys plays them at the same time. Clicking sounds when notes are released are solved through an ADSR envelope.
+This synth replaces the sine oscillator from the previous version with a Karplus-Strong plucked string model. The core idea is a circular delay line seeded with a triangle wave that circulates through a one-pole lowpass filter in a feedback loop. Each pass attenuates high frequencies slightly more than low ones, producing the natural brightness-to-warmth decay of a plucked string.
 
-These two solve the basic issues with the previous simple version, setting the foundations to get into more creative aspects of synth design.
+### Karplus-Strong Model
 
-### Issues:
+The delay line length determines pitch: `delay_len = sample_rate / f0 - 0.5`. The `- 0.5` compensates for the half-sample delay introduced by the averaging lowpass filter, which improves tuning accuracy. Fractional delay is handled with linear interpolation between adjacent samples so non-integer delay lengths are exact.
 
-Voice gain staging was difficult to tune. Each voice should be louder when less voices are playing to try to make sure the overall volume is consistent. I explored many options, such as linear gain staging, smoothing out the gain staging, and square root gain staging with soft saturation. However, I didn't like how any of the solutions sounded, so there is no gain staging. Instead, each voice is `1/voice` amplitude loud. Thus, setting the max number of voices lower makes each voice louder. This means that I just crank up the gain on my interface when I have a high number of voices, and adjust the velocity of notes if I am playing many notes at once.
+The feedback gain is computed to target a specific T60 decay time regardless of pitch. Without compensation, the averaging filter causes high notes to decay much faster than low ones. The gain formula:
 
-Voice stealing is implemented in a way that avoids clicks. When a new note arrives and no voices are free, the priority of the voice stolen is a releasing voice, then an active voice. In both cases, the voice enters a "kill envelope" where the voice fades in silence over `KILL_SAMPLES` (configured in `config.hpp`). The new note's data is stored in a `PendingNote` struct in the voice, and is applied once the voice reaches idle.
+```
+G  = 10^(-decay_db_per_sec / (20 * f0))   — target gain per loop
+A  = cos(π * f0 / fs)                      — LP filter's own amplitude response
+g  = min((G / A) * 0.5, 0.4995)            — compensated feedback gain
+```
+
+The hard cap at `0.4995` prevents `g` from reaching or exceeding `0.5` at high frequencies, which would cause net loop gain and a string that never decays, creating pop sounds.
+
+The delay line is seeded with a triangle wave rather than white noise. The peak of the triangle is at `pluck_pos` (0 = bridge end, 0.5 = middle), which shapes the harmonic content: plucking near the bridge emphasises higher harmonics for a bright attack, plucking at the centre gives a rounder, warmer tone.
+
+Output is tapped from `pickup_pos` along the delay line using interpolated reads, modelling microphone or pickup placement on the string.
+
+### Amplitude and Gain Staging
+
+Each voice bakes its amplitude into the delay line seed at trigger time:
+
+```
+amplitude = velocity / 127.0 / sqrt(MAX_VOICES)
+```
+
+Dividing by `sqrt(MAX_VOICES)` means the voices scale logarithmically. This is applied once at seed time, no dynamic gain correction applied, meaning voices don't change volume suddenly.
+
+A tanh saturator acts as a safety limiter on the final mix output:
+
+```
+out = tanh(mix * SATURATION_DRIVE) / SATURATION_DRIVE
+```
+
+With `SATURATION_DRIVE >= 1.0` the output is always within `(-1, 1)` before
+the clamp. Lower values of drive give cleaner output; higher values add soft
+saturation character when voices push the signal hard.
+
+### ADSR as a Release Gate
+
+KS has its own physical amplitude envelope built into the decay model, so the ADSR is simplified to three stages: Sustain (holds at 1.0 after trigger), Release (linear fade to zero on note-off), and Kill (fast fade used for voice stealing). Attack and Decay stages are removed entirely.
+
+### Voice Stealing
+
+Stealing an active voice has the same behavior as the previous program, entering a kill stage, then triggering the pending note when the voice reaches silence.
+
+However, as the delay line of the string model doesn't match the ADSR behavior, when a voice goes idle naturally (after release), `osc.clear()` zeroes the delay line before deactivating, preventing stale string content from leaking into the next note triggered on that voice.
