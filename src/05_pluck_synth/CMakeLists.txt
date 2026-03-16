@@ -13,3 +13,8 @@ target_link_libraries(05_pluck_synth PRIVATE
     ALSA::ALSA
     atomic
 )
+
+add_custom_command(TARGET 05_pluck_synth POST_BUILD
+    COMMAND sudo setcap cap_sys_nice+ep $<TARGET_FILE:05_pluck_synth>
+    COMMENT "Granting realtime scheduling capability"
+)

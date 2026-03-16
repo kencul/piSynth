@@ -207,3 +207,62 @@ However, as the delay line of the string model doesn't match the ADSR behavior, 
 ### DC Blocker
 
 As waveguides are prone to accumulating DC, a simple highpass filter is implemented at the end of `process()` in `osc.cpp`. 
+
+### Latency
+
+As real-time audio is on a strict deadline, making sure the program has ample time to process audio is important. How long it takes the kernel to schedule a thread is downtime from the OS that could ruin a deadline.
+
+A tool called `cyclictest` can be used to test how long this scheduling takes:
+
+```bash
+sudo apt install rt-tests
+sudo cyclictest -l100000 -m -p80 -i1000
+```
+
+This will measure the kernel thread scheduling delay 100,000 times with a 1ms delay with a `SCHED_FIFO` priority of 80.
+
+For my Pi 5, this test resulted in a min and average of 2µs, and a max of 12µs. This is extremely low, as a buffer size of 64 at 44.1kHz sample rate is around 1450µs of budget per period. This amount of scheduling latency is negligigle for my buffer size.
+
+If the scheduler were a problem, one can install the PREEMPT-RT kernel patch. This is a modification of linux kernels to make kernel tasks more often interruptable, giving more consistent access to the CPU to high priority, real-time tasks like audio programs. [This PDF](https://runtimerec.com/wp-content/uploads/2024/10/real-time-performance-in-linux-harnessing-preempt-rt-for-embedded-systems_67219ae1.pdf) provides a detailed run down of what PREEMPT-RT is, why its needed, and how to use it. [This GitHub repo](https://github.com/pbosetti/Raspberry5-RT) walks through the process of installing and compiling a PREEMPT-RT patch on a Raspberry Pi.
+
+For my case, I will not install ther PREEMPT-RT patch, and simply make sure the program runs with a `SCHED_FIFO` with a priority of 80.
+
+```cpp
+#include <pthread.h>
+
+void AudioEngine::start() {
+    running.store(true);
+    thread = std::thread(&AudioEngine::audio_loop, this);
+
+    // elevate above normal scheduler after thread is running
+    sched_param sp { .sched_priority = 80 };
+    int err = pthread_setschedparam(thread.native_handle(), SCHED_FIFO, &sp);
+    if (err != 0)
+        std::cerr << "AudioEngine: could not set realtime priority (missing cap_sys_nice?)\n";
+}
+```
+
+The binary must be given permissions to set its priority. This command can be run to do so:
+
+```bash
+sudo setcap cap_sys_nice+ep ./bin/05_pluck_synth
+```
+
+However, I have put this command in the `CMakeLists.txt` so it runs automatically after every build:
+
+```cmake
+add_custom_command(TARGET 05_pluck_synth POST_BUILD
+    COMMAND sudo setcap cap_sys_nice+ep $<TARGET_FILE:05_pluck_synth>
+    COMMENT "Granting realtime scheduling capability"
+)
+```
+
+To make sure the program is running in a priority status, run this command while the program is running:
+
+```bash
+ps -eLo pid,tid,cls,rtprio,comm | grep pluck
+```
+
+If the program shows as `TS`, it is in `timeshare` mode, meaning it is sharing in equal status, and the `SCHED_FIFO` isn't working.
+
+If it shows as `FF`, it is in `FIFO` mode, and it has priority status.

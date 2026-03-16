@@ -1,5 +1,6 @@
 #include "audio.hpp"
 #include <iostream>
+#include <pthread.h>
 #include <vector>
 
 AudioEngine::AudioEngine(RingBuffer<NoteEvent, 64> &event_queue) : event_queue(event_queue) {}
@@ -40,6 +41,12 @@ bool AudioEngine::configure_device() {
 void AudioEngine::start() {
 	running.store(true);
 	thread = std::thread(&AudioEngine::audio_loop, this);
+
+	// elevate above normal scheduler after thread is running
+	sched_param sp {.sched_priority = 80};
+	int err = pthread_setschedparam(thread.native_handle(), SCHED_FIFO, &sp);
+	if (err != 0)
+		std::cerr << "AudioEngine: could not set realtime priority (missing cap_sys_nice?)\n";
 }
 
 void AudioEngine::stop() {

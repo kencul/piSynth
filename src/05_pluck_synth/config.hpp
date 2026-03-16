@@ -25,11 +25,11 @@ inline constexpr float RELEASE_TIME = 100.0f; // ms
 
 // String Valules
 inline constexpr float PLUCK_POS  = 0.05f; // 0-1, relative position of the pluck on the string
-inline constexpr float PICKUP_POS = 0.3f; // 0-1
+inline constexpr float PICKUP_POS = 0.3f;  // 0-1
 
 inline constexpr float KILL_MS = 1.5f; // ~64 samples at 44100Hz
 
 inline constexpr float DEFAULT_DECAY_MS = 30000.0f; // time to reach -60dB
 
-inline constexpr float SATURATION_DRIVE = 1.0f;    // minimum 1.0f
+inline constexpr float SATURATION_DRIVE = 1.0f; // minimum 1.0f
 } // namespace Config
