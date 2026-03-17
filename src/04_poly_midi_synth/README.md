@@ -151,6 +151,16 @@ This program fleshes out the previous one, by implementing polyphony: pressing m
 
 These two solve the basic issues with the previous simple version, setting the foundations to get into more creative aspects of synth design.
 
+### Atomic Fencing
+
+ARM has a weak memory model, so there are no ordering guarantees. This means that the storing and loading of atomic values can come before the related data is written. This is crucial to understand in the ring buffer for the MIDI note events.
+
+The MIDI thread takes MIDI events, writes the values to an array, then moves an atomic write pointer forward. The audio thread then reads the write pointer position and pops the note values to trigger the notes. Reordering can occur where the MIDI thread writes the pointer value first before writing the actual note values to the array. Then the audio thread reads the garbage note values based on the position of the new write pointer, resulting in playing a bad note.
+
+To avoid this, atomic loads and stores must be marked as `std::memory_order_relaxed`, `std::memory_order_release`, or `std::memory_order_acquire`. Relaxed means it doesn't care about the ordering with other memory operations, release means it is a publish that requires that everything written before it is visible to whatever acquires it, and acquire subscribes to the release publish and sees all written data before the release.
+
+This is implemented in `push()` and `pop()` in `ring_buffer.hpp`.
+
 ### Issues:
 
 Voice gain staging was difficult to tune. Each voice should be louder when less voices are playing to try to make sure the overall volume is consistent. I explored many options, such as linear gain staging, smoothing out the gain staging, and square root gain staging with soft saturation. However, I didn't like how any of the solutions sounded, so there is no gain staging. Instead, each voice is `1/voice` amplitude loud. Thus, setting the max number of voices lower makes each voice louder. This means that I just crank up the gain on my interface when I have a high number of voices, and adjust the velocity of notes if I am playing many notes at once.
