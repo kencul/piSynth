@@ -24,12 +24,12 @@ inline constexpr float ATTACK_TIME  = 1.0f;   // ms
 inline constexpr float RELEASE_TIME = 100.0f; // ms
 
 // String Valules
-inline constexpr float PLUCK_POS  = 0.05f; // 0-1, relative position of the pluck on the string
-inline constexpr float PICKUP_POS = 0.3f;  // 0-1
+inline constexpr float PLUCK_POS  = 0.2f; // 0-1, relative position of the pluck on the string
+inline constexpr float PICKUP_POS = 0.5f;  // 0-1
 
 // Voice Panning
-inline constexpr float PAN_SPREAD = 0.3f; // how far left/right the highest/lowest notes pan based on pitch
-inline constexpr float PAN_SEMITONES = 36.0f; // semitones from center note (E4, MIDI note 64) to reach max pan
+inline constexpr float PAN_SPREAD = 0.2f; // how far left/right the highest/lowest notes pan based on pitch
+inline constexpr float PAN_SEMITONES = 48.0f; // semitones from center note (E4, MIDI note 64) to reach max pan
 
 inline constexpr float KILL_MS = 1.5f; // ~64 samples at 44100Hz
 
