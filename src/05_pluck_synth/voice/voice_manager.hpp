@@ -5,9 +5,11 @@
 #include "voice.hpp"
 #include <array>
 #include <cmath>
+#include <vector>
 
 class VoiceManager {
 public:
+	void init(int period_size);
 	void handle(const NoteEvent &ev);
 	void process(int32_t *buf, int frames, int channels);
 
@@ -22,4 +24,7 @@ private:
 	// tracks insertion order for oldest-voice stealing
 	std::array<int, Config::MAX_VOICES> voice_age = {};
 	int age_counter                               = 0;
+
+	std::vector<float> mix;
+	std::vector<float> tmp;
 };

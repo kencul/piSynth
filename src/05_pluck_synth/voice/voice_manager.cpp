@@ -4,6 +4,11 @@
 #include <cstring>
 #include <iostream>
 
+void VoiceManager::init(int period_size) {
+	mix.assign(period_size, 0.0f);
+	tmp.assign(period_size, 0.0f);
+}
+
 void VoiceManager::handle(const NoteEvent &ev) {
 	if (ev.type == NoteEvent::Type::NoteOn) {
 		int idx = allocate_voice();
@@ -22,10 +27,7 @@ void VoiceManager::handle(const NoteEvent &ev) {
 }
 
 void VoiceManager::process(int32_t *buf, int frames, int channels) {
-	std::array<float, Config::PERIOD_SIZE> mix = {};
-	std::array<float, Config::PERIOD_SIZE> tmp = {};
-
-	mix.fill(0.0f);
+	std:fill(mix.begin(), mix.end(), 0.0f);
 
 	bool any_active = false;
 	for (auto &v : voices) {

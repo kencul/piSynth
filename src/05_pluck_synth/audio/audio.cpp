@@ -12,7 +12,12 @@ bool AudioEngine::open(const char *device) {
 		std::cerr << "AudioEngine: could not open device: " << device << "\n";
 		return false;
 	}
-	return configure_device();
+
+	if (!configure_device()) return false;
+
+	voice_manager.init(period_size);
+
+	return true;
 }
 
 bool AudioEngine::configure_device() {
