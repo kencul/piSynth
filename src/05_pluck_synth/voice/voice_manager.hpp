@@ -25,6 +25,7 @@ private:
 	std::array<int, Config::MAX_VOICES> voice_age = {};
 	uint32_t age_counter                          = 0;
 
-	std::vector<float> mix;
+	std::vector<float> mix_l;
+	std::vector<float> mix_r;
 	std::vector<float> tmp;
 };

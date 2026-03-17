@@ -6,7 +6,8 @@
 #include <iostream>
 
 void VoiceManager::init(int period_size) {
-	mix.assign(period_size, 0.0f);
+	mix_l.assign(period_size, 0.0f);
+	mix_r.assign(period_size, 0.0f);
 	tmp.assign(period_size, 0.0f);
 }
 
@@ -28,16 +29,22 @@ void VoiceManager::handle(const NoteEvent &ev) {
 }
 
 void VoiceManager::process(int32_t *buf, int frames, int channels) {
-	assert(frames <= mix.size());
+	assert(frames <= mix_l.size());
+	assert(frames <= mix_r.size());
 
-	std::fill(mix.begin(), mix.end(), 0.0f);
+	std::fill(mix_l.begin(), mix_l.end(), 0.0f);
+	std::fill(mix_r.begin(), mix_r.end(), 0.0f);
 
 	bool any_active = false;
 	for (auto &v : voices) {
 		if (!v.active) continue;
 		any_active = true;
 		v.osc.process(tmp.data(), frames);
-		for (int i = 0; i < frames; ++i) mix[i] += tmp[i] * v.envelope.process();
+		for (int i = 0; i < frames; ++i) {
+			float s = tmp[i] * v.envelope.process();
+			mix_l[i] += s * v.pan_left;
+			mix_r[i] += s * v.pan_right;
+		}
 	}
 
 	if (!any_active) {
@@ -56,11 +63,13 @@ void VoiceManager::process(int32_t *buf, int frames, int channels) {
 	}
 
 	for (int i = 0; i < frames; ++i) {
-		// tanh as a safety limiter
-		float out = std::tanh(mix[i] * Config::SATURATION_DRIVE) / Config::SATURATION_DRIVE;
+		float l = std::tanh(mix_l[i] * Config::SATURATION_DRIVE) / Config::SATURATION_DRIVE;
+		float r = std::tanh(mix_r[i] * Config::SATURATION_DRIVE) / Config::SATURATION_DRIVE;
 
-		int32_t sample = static_cast<int32_t>(std::clamp(out, -1.0f, 1.0f) * Config::SAMPLE_SCALE);
-		for (int ch = 0; ch < channels; ++ch) buf[i * channels + ch] = sample;
+		buf[i * channels + 0] =
+		    static_cast<int32_t>(std::clamp(l, -1.0f, 1.0f) * Config::SAMPLE_SCALE);
+		buf[i * channels + 1] =
+		    static_cast<int32_t>(std::clamp(r, -1.0f, 1.0f) * Config::SAMPLE_SCALE);
 	}
 }
 

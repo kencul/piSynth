@@ -20,4 +20,7 @@ public:
 		int velocity;
 		bool valid = false;
 	} pending;
+
+	float pan_left  = 1.0f;
+	float pan_right = 1.0f;
 };
