@@ -5,6 +5,7 @@ add_executable(05_pluck_synth
     audio/audio.cpp
     voice/voice_manager.cpp
     adsr/adsr.cpp
+    voice/voice.cpp
 )
 
 target_include_directories(05_pluck_synth PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
