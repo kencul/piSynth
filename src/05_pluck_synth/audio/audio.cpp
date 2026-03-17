@@ -82,6 +82,7 @@ void AudioEngine::audio_loop() {
 
 		snd_pcm_sframes_t written = snd_pcm_writei(handle, buf.data(), period_size);
 		if (written < 0) {
+			if (written == -EPIPE) std::cerr << "AudioEngine: xrun (underrun)\n";
 			written = snd_pcm_recover(handle, written, 0);
 			if (written < 0) {
 				std::cerr << "AudioEngine: unrecoverable error: " << snd_strerror(written) << "\n";

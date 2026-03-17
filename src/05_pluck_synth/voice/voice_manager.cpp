@@ -1,5 +1,6 @@
 #include "voice_manager.hpp"
 #include <algorithm>
+#include <cassert>
 #include <cmath>
 #include <cstring>
 #include <iostream>
@@ -27,7 +28,9 @@ void VoiceManager::handle(const NoteEvent &ev) {
 }
 
 void VoiceManager::process(int32_t *buf, int frames, int channels) {
-	std:fill(mix.begin(), mix.end(), 0.0f);
+	assert(frames <= mix.size());
+
+	std::fill(mix.begin(), mix.end(), 0.0f);
 
 	bool any_active = false;
 	for (auto &v : voices) {
