@@ -8,7 +8,7 @@ public:
 	void set_attack(float ms);
 	void set_release(float ms);
 
-	void trigger(); // immediately holds at 1.0
+	void trigger(); // starts attack
 	void release(); // starts fade to 0
 	void kill();    // fast ramp to 0 for voice stealing
 

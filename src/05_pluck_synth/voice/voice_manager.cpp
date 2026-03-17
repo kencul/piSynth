@@ -22,21 +22,22 @@ void VoiceManager::handle(const NoteEvent &ev) {
 }
 
 void VoiceManager::process(int32_t *buf, int frames, int channels) {
+	std::array<float, Config::PERIOD_SIZE> mix = {};
+	std::array<float, Config::PERIOD_SIZE> tmp = {};
+
 	mix.fill(0.0f);
 
-	int active_count = 0;
-	for (auto &v : voices)
-		if (v.active) ++active_count;
-
-	if (active_count == 0) {
-		std::memset(buf, 0, frames * channels * sizeof(int32_t));
-		return;
-	}
-
+	bool any_active = false;
 	for (auto &v : voices) {
 		if (!v.active) continue;
+		any_active = true;
 		v.osc.process(tmp.data(), frames);
 		for (int i = 0; i < frames; ++i) mix[i] += tmp[i] * v.envelope.process();
+	}
+
+	if (!any_active) {
+		std::memset(buf, 0, frames * channels * sizeof(int32_t));
+		return;
 	}
 
 	// check idle voices and trigger pending notes or clear and deactivate

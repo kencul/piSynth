@@ -131,7 +131,7 @@ voice_manager.process(buf, frames, channels)
         │        → Release: level -= release_rate
         │        → Kill:    level -= kill_rate
         │        → Idle:    level = 0.0
-        │      mix[i] += tmp[i] * velocity_gain * envelope_gain
+        │      mix[i] += tmp[i] * envelope_gain
         │
         │  for idle voices:
         │    if pending note exists → trigger it
@@ -196,7 +196,7 @@ saturation character when voices push the signal hard.
 
 ### ADSR as a Release Gate
 
-KS has its own physical amplitude envelope built into the decay model, so the ADSR is simplified to four stages: Attack (linear ramp from 0.0 to 1.0), Sustain (holds at 1.0 after trigger), Release (linear fade to zero on note-off), and Kill (fast fade used for voice stealing). A inperceptively short attack is required to get rid of a click when the note turns on. Decay stage is removed entirely.
+KS has its own physical amplitude envelope built into the decay model, so the ADSR is simplified to four stages: Attack (linear ramp from 0.0 to 1.0), Sustain (holds at 1.0 after trigger), Release (linear fade to zero on note-off), and Kill (fast fade used for voice stealing).A short imperceptible attack ramp eliminates the onset click. Decay stage is removed entirely.
 
 ### Voice Stealing
 
@@ -266,3 +266,13 @@ ps -eLo pid,tid,cls,rtprio,comm | grep pluck
 If the program shows as `TS`, it is in `timeshare` mode, meaning it is sharing in equal status, and the `SCHED_FIFO` isn't working.
 
 If it shows as `FF`, it is in `FIFO` mode, and it has priority status.
+
+The program itself can also log the priority the thread was given into the console:
+
+```cpp
+// read back what the kernel actually assigned
+    int policy;
+    pthread_getschedparam(thread.native_handle(), &policy, &sp);
+    std::cout << "AudioEngine: policy=" << (policy == SCHED_FIFO ? "SCHED_FIFO" : "OTHER")
+              << " priority=" << sp.sched_priority << "\n";
+```

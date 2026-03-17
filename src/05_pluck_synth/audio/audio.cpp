@@ -47,6 +47,12 @@ void AudioEngine::start() {
 	int err = pthread_setschedparam(thread.native_handle(), SCHED_FIFO, &sp);
 	if (err != 0)
 		std::cerr << "AudioEngine: could not set realtime priority (missing cap_sys_nice?)\n";
+
+	// read back what the kernel actually assigned
+	int policy;
+	pthread_getschedparam(thread.native_handle(), &policy, &sp);
+	std::cout << "AudioEngine: policy=" << (policy == SCHED_FIFO ? "SCHED_FIFO" : "OTHER")
+	          << " priority=" << sp.sched_priority << "\n";
 }
 
 void AudioEngine::stop() {

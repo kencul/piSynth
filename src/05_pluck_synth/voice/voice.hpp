@@ -9,7 +9,6 @@ struct Voice {
 	ADSR envelope {Config::SAMPLE_RATE};
 	int note            = -1;
 	bool active         = false;
-	float velocity_gain = 1.0f;
 
 	struct PendingNote {
 		int note;
@@ -21,7 +20,7 @@ struct Voice {
 	void trigger(int midi_note, double hz, int velocity) {
 		note          = midi_note;
 		active        = true;
-		velocity_gain = velocity / 127.0f;
+		float velocity_gain = velocity / 127.0f;
 
 		// gain baked into seed: velocity * per-voice scale, never changes after this
 		float amplitude = velocity_gain / std::sqrt(static_cast<float>(Config::MAX_VOICES));

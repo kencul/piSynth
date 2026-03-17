@@ -22,7 +22,4 @@ private:
 	// tracks insertion order for oldest-voice stealing
 	std::array<int, Config::MAX_VOICES> voice_age = {};
 	int age_counter                               = 0;
-
-	std::array<float, Config::PERIOD_SIZE> mix = {};
-	std::array<float, Config::PERIOD_SIZE> tmp = {};
 };
