@@ -1,6 +1,6 @@
 # 05 Pluck Synth
 
-A polyphonic pluck-string model synthesizer driven by MIDI input.
+A polyphonic string pluck waveguide synthesizer driven by MIDI input.
 
 ## Usage
 
@@ -154,9 +154,9 @@ Audio output
 
 ## Code Breakdown
 
-This synth replaces the sine oscillator from the previous version with a Karplus-Strong plucked string model. The core idea is a circular delay line seeded with a triangle wave that circulates through a one-pole lowpass filter in a feedback loop. Each pass attenuates high frequencies slightly more than low ones, producing the natural brightness-to-warmth decay of a plucked string.
+This synth replaces the sine oscillator from the previous version with a waveguide plucked string model. The core idea is a circular delay line seeded with a triangle wave that circulates through a one-pole lowpass filter in a feedback loop. Each pass attenuates high frequencies slightly more than low ones, producing the natural brightness-to-warmth decay of a plucked string.
 
-### Karplus-Strong Model
+### Waveguide Model
 
 The delay line length determines pitch: `delay_len = sample_rate / f0 - 0.5`. The `- 0.5` compensates for the half-sample delay introduced by the averaging lowpass filter, which improves tuning accuracy. Fractional delay is handled with linear interpolation between adjacent samples so non-integer delay lengths are exact.
 
