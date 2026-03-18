@@ -87,9 +87,10 @@ void AudioEngine::audio_loop() {
 		if (written < 0) {
 			if (written == -EPIPE) {
 				++xrun_count;
-				auto elapsed   = std::chrono::steady_clock::now() - session_start;
+				auto elapsed = std::chrono::steady_clock::now() - session_start;
 				double minutes = std::chrono::duration<double>(elapsed).count() / 60.0;
-				std::cerr << "xrun #" << xrun_count << " (" << (xrun_count / minutes) << "/min)\n";
+				double rate  = minutes > 0.1 ? xrun_count / minutes : 0.0;
+				std::cerr << "xrun #" << xrun_count << " (" << rate << "/min)\n";
 			}
 
 			written = snd_pcm_recover(handle, written, 0);
