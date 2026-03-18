@@ -1,9 +1,11 @@
 #include "synth_params.hpp"
-#include "../config.hpp"
 #include <algorithm>
 #include <cmath>
 
 SynthParams::SynthParams() {
+	static_assert(std::atomic<float>::is_always_lock_free,
+	              "float atomics must be lock-free on this platform");
+
 	// descriptors define the full contract for each param
 	descs[static_cast<int>(ParamId::MasterGain)] = {
 	    0.0f, 1.0f, 1.0f, CCScale::Exp, "Master Gain", ""};

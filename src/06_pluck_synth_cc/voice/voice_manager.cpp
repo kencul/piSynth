@@ -59,11 +59,10 @@ void VoiceManager::process(int16_t *buf, int frames, int channels) {
 		else { v.active = false; }
 	}
 
+	float gain = params.value(SynthParams::ParamId::MasterGain);
 	for (int i = 0; i < frames; ++i) {
 		float l = std::tanh(mix_l[i] * Config::SATURATION_DRIVE) / Config::SATURATION_DRIVE;
 		float r = std::tanh(mix_r[i] * Config::SATURATION_DRIVE) / Config::SATURATION_DRIVE;
-
-		float gain = params.value(SynthParams::ParamId::MasterGain);
 
 		buf[i * channels + 0] =
 		    static_cast<int16_t>(std::clamp(l * gain, -1.0f, 1.0f) * Config::SAMPLE_SCALE);

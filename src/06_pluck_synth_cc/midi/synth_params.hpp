@@ -1,5 +1,5 @@
 #pragma once
-#include "config.hpp"
+#include "../config.hpp"
 #include <array>
 #include <atomic>
 #include <optional>

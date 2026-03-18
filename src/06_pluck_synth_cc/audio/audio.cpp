@@ -74,6 +74,8 @@ void AudioEngine::stop() {
 
 void AudioEngine::audio_loop() {
 	std::vector<int16_t> buf(period_size * channels);
+	int xrun_count     = 0;
+	auto session_start = std::chrono::steady_clock::now();
 
 	while (running.load()) {
 		// drain all pending MIDI events before generating audio
@@ -83,7 +85,13 @@ void AudioEngine::audio_loop() {
 
 		snd_pcm_sframes_t written = snd_pcm_writei(handle, buf.data(), period_size);
 		if (written < 0) {
-			if (written == -EPIPE) std::cerr << "AudioEngine: xrun (underrun)\n";
+			if (written == -EPIPE) {
+				++xrun_count;
+				auto elapsed   = std::chrono::steady_clock::now() - session_start;
+				double minutes = std::chrono::duration<double>(elapsed).count() / 60.0;
+				std::cerr << "xrun #" << xrun_count << " (" << (xrun_count / minutes) << "/min)\n";
+			}
+
 			written = snd_pcm_recover(handle, written, 0);
 			if (written < 0) {
 				std::cerr << "AudioEngine: unrecoverable error: " << snd_strerror(written) << "\n";

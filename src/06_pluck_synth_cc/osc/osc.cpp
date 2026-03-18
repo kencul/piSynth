@@ -51,7 +51,9 @@ void Pluck::clear() {
 
 float Pluck::interpolate_delay_line(float read_idx_float) {
 	// Ensure `read_idx_float` is positive for modulo arithmetic.
-	while (read_idx_float < 0.0f) read_idx_float += static_cast<float>(MAX_DELAY);
+	// fmod handles negatives cleanly and signals intent
+	read_idx_float = std::fmod(read_idx_float, static_cast<float>(MAX_DELAY));
+	if (read_idx_float < 0.0f) read_idx_float += static_cast<float>(MAX_DELAY);
 
 	int idx0   = static_cast<int>(read_idx_float) & (MAX_DELAY - 1);
 	int idx1   = (idx0 + 1) & (MAX_DELAY - 1);
