@@ -3,18 +3,19 @@
 
 namespace Config {
 // Audio
-inline constexpr unsigned int SAMPLE_RATE = 44100;
+inline constexpr unsigned int SAMPLE_RATE = 48000;
 inline constexpr unsigned int PERIOD_SIZE = 64;
 inline constexpr unsigned int BUFFER_SIZE = PERIOD_SIZE * 4;
 inline constexpr unsigned int CHANNELS    = 2;
 
 // bit depth of the DAC
-inline constexpr int BIT_DEPTH = 24;
-inline constexpr double SAMPLE_SCALE =
-    static_cast<double>((1 << (BIT_DEPTH - 1)) - 1) * static_cast<double>(1u << (32 - BIT_DEPTH));
+inline constexpr int BIT_DEPTH       = 16;
+inline constexpr double SAMPLE_SCALE = 32767.0;
+// static_cast<double>((1 << (BIT_DEPTH - 1)) - 1)
+//     * static_cast<double>(1u << (32 - BIT_DEPTH));
 
 // Devices
-inline constexpr const char *AUDIO_DEVICE = "hw:UR22mkII";
+inline constexpr const char *AUDIO_DEVICE = "hw:A";
 inline constexpr const char *MIDI_DEVICE  = "KOMPLETE KONTROL";
 
 inline constexpr int MAX_VOICES = 8;

@@ -15,7 +15,7 @@ public:
 	};
 	void init(int period_size);
 	void handle(const NoteEvent &ev);
-	void process(int32_t *buf, int frames, int channels);
+	void process(int16_t *buf, int frames, int channels);
 
 private:
 	SynthParams &params;

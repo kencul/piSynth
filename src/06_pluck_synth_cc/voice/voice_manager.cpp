@@ -28,7 +28,7 @@ void VoiceManager::handle(const NoteEvent &ev) {
 	}
 }
 
-void VoiceManager::process(int32_t *buf, int frames, int channels) {
+void VoiceManager::process(int16_t *buf, int frames, int channels) {
 	assert(frames <= mix_l.size());
 	assert(frames <= mix_r.size());
 
@@ -48,7 +48,7 @@ void VoiceManager::process(int32_t *buf, int frames, int channels) {
 	}
 
 	if (!any_active) {
-		std::memset(buf, 0, frames * channels * sizeof(int32_t));
+		std::memset(buf, 0, frames * channels * sizeof(int16_t));
 		return;
 	}
 
@@ -66,9 +66,9 @@ void VoiceManager::process(int32_t *buf, int frames, int channels) {
 		float gain = params.value(SynthParams::ParamId::MasterGain);
 
 		buf[i * channels + 0] =
-		    static_cast<int32_t>(std::clamp(l * gain, -1.0f, 1.0f) * Config::SAMPLE_SCALE);
+		    static_cast<int16_t>(std::clamp(l * gain, -1.0f, 1.0f) * Config::SAMPLE_SCALE);
 		buf[i * channels + 1] =
-		    static_cast<int32_t>(std::clamp(r * gain, -1.0f, 1.0f) * Config::SAMPLE_SCALE);
+		    static_cast<int16_t>(std::clamp(r * gain, -1.0f, 1.0f) * Config::SAMPLE_SCALE);
 	}
 }
 
