@@ -25,7 +25,7 @@ private:
 	static constexpr int MAX_DELAY = 8192;
 
 	std::array<float, MAX_DELAY> delay_line = {};
-	int write_pos;
+	int write_pos = 0;
 
 	float delay_len;
 	// Half the total delay length, representing one-way physical string length.

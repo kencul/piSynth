@@ -39,6 +39,9 @@ inline constexpr float PAN_SPREAD =
 inline constexpr float PAN_SEMITONES =
     48.0f; // semitones from center note (E4, MIDI note 64) to reach max pan
 
+inline constexpr float FILTER_KEYTRACK = 0.8f; // how much the filter cutoff tracks the note pitch
+                                               // (0.0-2.0, where 1.0 means perfect tracking)
+
 inline constexpr float KILL_MS = 1.5f; // ~64 samples at 44100Hz
 
 inline constexpr float MIN_DECAY_MS = 10.0f;
