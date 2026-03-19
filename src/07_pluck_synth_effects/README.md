@@ -251,7 +251,6 @@ For restructuring purposes, I replaced most references to vectors or arrays with
 
 I also restructured the params so that it is the responsibility of `VoiceManager` to send all param data to the relavent objects. `Voice` no longer knows the existance of `SynthParams`.
 
-
 ### Zero Delay SVF
 
 I implemented the same zero delay state variable filter that I made in my [STM32 Polyphonic Synth](https://github.com/kencul/STM32F4-AudioSynthesis/tree/main). It is light to compute, accurate, and stable at high resonance, so it works for this synth as well.
@@ -272,3 +271,9 @@ This means the cutoff the user sets is what is applied to C4. When a note is in 
 As I ran out of CC knobs on my MIDI controller, I made a quick and scuffed MIDI CC controller with a Teensy 4.0 and one of my dual channel analog mux boards. This adds 8 more pots, with more that can be easily added in the future.
 
 To be able to use this, I converted the `MIDIReader::open` function to take a `initializer_list`, a read only view of brace-enclosed lists of values. In simple terms, `config.hpp` takes a list of MIDI device names in braces and tries to connect all of them to the synth.
+
+### Master Bus
+
+All global audio effeccts are put into a master bus, that runs after `VoiceManager::process()` in the audio loop. The audio loop runs `MasterBus::process()`, which then runs all the effects in one place. To begin, the `tanh` saturation and the master gain are put here.
+
+The `AudioEngine` only handles clamping for emergencies and int16 conversion.

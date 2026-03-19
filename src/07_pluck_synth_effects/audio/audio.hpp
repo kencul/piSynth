@@ -1,5 +1,6 @@
 #pragma once
 #include "../config.hpp"
+#include "../effects/master_bus.hpp"
 #include "../midi/synth_params.hpp"
 #include "../voice/note_event.hpp"
 #include "../voice/ring_buffer.hpp"
@@ -23,6 +24,7 @@ private:
 
 	snd_pcm_t *handle = nullptr;
 	VoiceManager voice_manager;
+	MasterBus master_bus;
 	std::thread thread;
 	std::atomic<bool> running {false};
 
@@ -34,7 +36,7 @@ private:
 	unsigned int sample_rate      = Config::SAMPLE_RATE;
 	unsigned int channels         = Config::CHANNELS;
 
-	std::vector<float>   mix_l;
-    std::vector<float>   mix_r;
-    std::vector<int16_t> buf;
+	std::vector<float> mix_l;
+	std::vector<float> mix_r;
+	std::vector<int16_t> buf;
 };

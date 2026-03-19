@@ -5,7 +5,7 @@
 #include <vector>
 
 AudioEngine::AudioEngine(RingBuffer<NoteEvent, 64> &event_queue, SynthParams &params) :
-    event_queue(event_queue), params(params), voice_manager(params) {}
+    event_queue(event_queue), params(params), voice_manager(params), master_bus(params) {}
 
 AudioEngine::~AudioEngine() { stop(); }
 
@@ -18,6 +18,7 @@ bool AudioEngine::open(const char *device) {
 	if (!configure_device()) return false;
 
 	voice_manager.init(period_size);
+	master_bus.init(period_size);
 
 	mix_l.assign(period_size, 0.0f);
 	mix_r.assign(period_size, 0.0f);
@@ -86,16 +87,13 @@ void AudioEngine::audio_loop() {
 		while (auto ev = event_queue.pop()) voice_manager.handle(*ev);
 
 		voice_manager.process(mix_l, mix_r);
+		master_bus.process(mix_l, mix_r);
 
-		float gain = params.value(SynthParams::ParamId::MasterGain);
-		for (int i = 0; i < (int)period_size; ++i) {
-			// apply saturation and master gain, then clip to [-1.0, 1.0] before converting to int16
-			float l = std::tanh(mix_l[i] * Config::SATURATION_DRIVE) / Config::SATURATION_DRIVE;
-			float r = std::tanh(mix_r[i] * Config::SATURATION_DRIVE) / Config::SATURATION_DRIVE;
+		for (int i = 0; i < static_cast<int>(period_size); ++i) {
 			buf[i * channels + 0] =
-			    static_cast<int16_t>(std::clamp(l * gain, -1.0f, 1.0f) * Config::SAMPLE_SCALE);
+			    static_cast<int16_t>(std::clamp(mix_l[i], -1.0f, 1.0f) * Config::SAMPLE_SCALE);
 			buf[i * channels + 1] =
-			    static_cast<int16_t>(std::clamp(r * gain, -1.0f, 1.0f) * Config::SAMPLE_SCALE);
+			    static_cast<int16_t>(std::clamp(mix_r[i], -1.0f, 1.0f) * Config::SAMPLE_SCALE);
 		}
 
 		snd_pcm_sframes_t written = snd_pcm_writei(handle, buf.data(), period_size);
