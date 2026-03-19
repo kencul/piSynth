@@ -1,0 +1,33 @@
+#pragma once
+#include "../adsr/adsr.hpp"
+#include "../config.hpp"
+#include "../midi/synth_params.hpp"
+#include "note_event.hpp"
+#include "voice.hpp"
+#include <array>
+#include <cmath>
+#include <vector>
+
+class VoiceManager {
+public:
+	explicit VoiceManager(SynthParams &params) : params(params) {
+		for (auto &v : voices) v.params = &params;
+	};
+	void init(int period_size);
+	void handle(const NoteEvent &ev);
+	void process(std::span<float> mix_l, std::span<float> mix_r);
+
+private:
+	SynthParams &params;
+
+	std::array<Voice, Config::MAX_VOICES> voices;
+
+	// returns index of a free voice, or steals the oldest if all active
+	int allocate_voice();
+
+	static double midi_to_hz(int note);
+
+	// tracks insertion order for oldest-voice stealing
+	std::array<int, Config::MAX_VOICES> voice_age = {};
+	uint32_t age_counter                          = 0;
+};
