@@ -20,7 +20,7 @@ int main() {
 	MidiReader midi(event_queue, params);
 
 	if (!audio.open(Config::AUDIO_DEVICE)) return 1;
-	if (!midi.open(Config::MIDI_DEVICE)) return 1;
+	if (!midi.open(Config::MIDI_DEVICES)) return 1;
 
 	std::signal(SIGINT, on_signal);
 	std::signal(SIGTERM, on_signal);

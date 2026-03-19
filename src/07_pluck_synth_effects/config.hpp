@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <initializer_list>
 
 namespace Config {
 // Audio
@@ -15,8 +16,11 @@ inline constexpr double SAMPLE_SCALE = 32767.0;
 //     * static_cast<double>(1u << (32 - BIT_DEPTH));
 
 // Devices
-inline constexpr const char *AUDIO_DEVICE = "hw:A";
-inline constexpr const char *MIDI_DEVICE  = "KOMPLETE KONTROL";
+inline constexpr const char *AUDIO_DEVICE                         = "hw:A";
+inline constexpr std::initializer_list<const char *> MIDI_DEVICES = {
+    "KOMPLETE KONTROL",
+    "Teensy MIDI",
+};
 
 inline constexpr int MAX_VOICES = 8;
 

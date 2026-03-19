@@ -11,7 +11,7 @@ MidiReader::MidiReader(RingBuffer<NoteEvent, 64> &event_queue, SynthParams &para
 
 MidiReader::~MidiReader() { stop(); }
 
-bool MidiReader::open(const char *device_name) {
+bool MidiReader::open(std::initializer_list<const char *> device_names) {
 	if (snd_seq_open(&seq, "default", SND_SEQ_OPEN_DUPLEX, 0) < 0) {
 		std::cerr << "MidiReader: failed to open sequencer\n";
 		return false;
@@ -28,15 +28,19 @@ bool MidiReader::open(const char *device_name) {
 		return false;
 	}
 
-	int src_client = find_client(device_name);
-	if (src_client < 0) {
-		std::cerr << "MidiReader: could not find device: " << device_name << "\n";
-		return false;
+	bool any_connected = false;
+	for (const char *name : device_names) {
+		int client = find_client(name);
+		if (client < 0) {
+			std::cerr << "MidiReader: could not find device: " << name << "\n";
+			continue;
+		}
+		snd_seq_connect_from(seq, in_port, client, 0);
+		std::cout << "MidiReader: connected to " << name << " (client " << client << ":0)\n";
+		any_connected = true;
 	}
 
-	snd_seq_connect_from(seq, in_port, src_client, 0);
-	std::cout << "MidiReader: connected to " << device_name << " (client " << src_client << ":0)\n";
-	return true;
+	return any_connected;
 }
 
 void MidiReader::start() {

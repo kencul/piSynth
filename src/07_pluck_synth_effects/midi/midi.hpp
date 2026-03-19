@@ -12,7 +12,7 @@ public:
 	explicit MidiReader(RingBuffer<NoteEvent, 64> &event_queue, SynthParams &params);
 	~MidiReader();
 
-	bool open(const char *device_name);
+	bool open(std::initializer_list<const char *> device_names);
 	void start();
 	void stop();
 

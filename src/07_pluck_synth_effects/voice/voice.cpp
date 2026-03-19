@@ -1,12 +1,18 @@
 #include "voice.hpp"
 #include <algorithm>
-#include <cmath>
 #include <cassert>
+#include <cmath>
 
 void Voice::init(int period_size) { tmp.resize(period_size); }
 
-void Voice::trigger(int midi_note, double hz, int velocity) {
-	envelope.set_attack(params->value(SynthParams::ParamId::AttackTime));
+void Voice::trigger(int midi_note,
+                    double hz,
+                    int velocity,
+                    float attack,
+                    float decay,
+                    float pluck_pos,
+                    float pickup_pos) {
+	envelope.set_attack(attack);
 	note   = midi_note;
 	active = true;
 
@@ -24,12 +30,9 @@ void Voice::trigger(int midi_note, double hz, int velocity) {
 
 	osc.set_frequency(hz);
 
-	osc.set_decay(
-	    60000.0f
-	    / params->value(SynthParams::ParamId::DecayTime)); // convert decay time to decay dB/s
-	osc.trigger(params->value(SynthParams::ParamId::PluckPos),
-	            params->value(SynthParams::ParamId::PickupPos),
-	            amplitude);
+	osc.set_decay(60000.0f / decay); // convert decay time to decay dB/s
+	osc.trigger(pluck_pos, pickup_pos, amplitude);
+	filter.reset();
 	envelope.trigger();
 	pending.valid = false;
 }
@@ -39,19 +42,25 @@ void Voice::steal(int midi_note, double hz, int velocity) {
 	envelope.kill();
 }
 
-void Voice::release() {
-	envelope.set_release(params->value(SynthParams::ParamId::ReleaseTime));
+void Voice::release(float release_time) {
+	envelope.set_release(release_time);
 	envelope.release();
 }
 
-void Voice::process(std::span<float> mix_l, std::span<float> mix_r) {
+void Voice::process(std::span<float> mix_l, std::span<float> mix_r, float cutoff, float resonance) {
 	assert(mix_l.size() == tmp.size());
 	assert(mix_r.size() == tmp.size());
 
+	// scale cutoff to note pitch: doubles per octave above C4, halves below
+    float tracking = std::pow(2.0f, (note - 60) / 12.0f);
+	
+	filter.set_cutoff(cutoff);
+	filter.set_resonance(resonance);
+
 	osc.process(tmp);
 
-	for (int i = 0; i < tmp.size(); ++i) {
-		float s = tmp[i] * envelope.process();
+	for (int i = 0; i < static_cast<int>(tmp.size()); ++i) {
+		float s = filter.process(tmp[i]) * envelope.process();
 		mix_l[i] += s * pan_left;
 		mix_r[i] += s * pan_right;
 	}

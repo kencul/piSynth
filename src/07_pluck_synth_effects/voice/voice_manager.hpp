@@ -10,12 +10,12 @@
 
 class VoiceManager {
 public:
-	explicit VoiceManager(SynthParams &params) : params(params) {
-		for (auto &v : voices) v.params = &params;
-	};
+	explicit VoiceManager(SynthParams &params) : params(params) {};
 	void init(int period_size);
 	void handle(const NoteEvent &ev);
 	void process(std::span<float> mix_l, std::span<float> mix_r);
+
+	void trigger_note(Voice &voice, int midi_note, double hz, int velocity);
 
 private:
 	SynthParams &params;

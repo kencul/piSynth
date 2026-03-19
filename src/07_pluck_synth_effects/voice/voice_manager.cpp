@@ -14,12 +14,14 @@ void VoiceManager::handle(const NoteEvent &ev) {
 		int idx = allocate_voice();
 		if (voices[idx].active) {
 			voices[idx].steal(ev.note, midi_to_hz(ev.note), ev.velocity);
-		} else
-			voices[idx].trigger(ev.note, midi_to_hz(ev.note), ev.velocity);
+		} else {
+			trigger_note(voices[idx], ev.note, midi_to_hz(ev.note), ev.velocity);
+		}
 		voice_age[idx] = age_counter++;
 	} else {
 		for (int i = 0; i < Config::MAX_VOICES; ++i) {
-			if (voices[i].active && voices[i].note == ev.note) voices[i].release();
+			if (voices[i].active && voices[i].note == ev.note)
+				voices[i].release(params.value(SynthParams::ParamId::ReleaseTime));
 			if (voices[i].pending.valid && voices[i].pending.note == ev.note)
 				voices[i].pending.valid = false;
 		}
@@ -30,11 +32,14 @@ void VoiceManager::process(std::span<float> mix_l, std::span<float> mix_r) {
 	std::fill(mix_l.begin(), mix_l.end(), 0.0f);
 	std::fill(mix_r.begin(), mix_r.end(), 0.0f);
 
+	float cutoff    = params.value(SynthParams::ParamId::FilterCutoff);
+	float resonance = params.value(SynthParams::ParamId::FilterResonance);
+
 	bool any_active = false;
 	for (auto &v : voices) {
 		if (!v.active) continue;
 		any_active = true;
-		v.process(mix_l, mix_r);
+		v.process(mix_l, mix_r, cutoff, resonance);
 	}
 
 	if (!any_active) return;
@@ -42,8 +47,11 @@ void VoiceManager::process(std::span<float> mix_l, std::span<float> mix_r) {
 	// check idle voices and trigger pending notes or clear and deactivate
 	for (auto &v : voices) {
 		if (!v.active || !v.envelope.is_idle()) continue;
-		if (v.pending.valid) v.trigger(v.pending.note, v.pending.hz, v.pending.velocity);
-		else { v.active = false; }
+		if (v.pending.valid) {
+			trigger_note(v, v.pending.note, v.pending.hz, v.pending.velocity);
+		} else {
+			v.active = false;
+		}
 	}
 }
 
@@ -66,3 +74,11 @@ int VoiceManager::allocate_voice() {
 }
 
 double VoiceManager::midi_to_hz(int note) { return 440.0 * std::pow(2.0, (note - 69) / 12.0); }
+
+void VoiceManager::trigger_note(Voice &voice, int midi_note, double hz, int velocity) {
+	float attack     = params.value(SynthParams::ParamId::AttackTime);
+	float decay      = params.value(SynthParams::ParamId::DecayTime);
+	float pluck_pos  = params.value(SynthParams::ParamId::PluckPos);
+	float pickup_pos = params.value(SynthParams::ParamId::PickupPos);
+	voice.trigger(midi_note, hz, velocity, attack, decay, pluck_pos, pickup_pos);
+}

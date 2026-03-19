@@ -62,7 +62,7 @@ float Pluck::interpolate_delay_line(float read_idx_float) {
 }
 
 void Pluck::process(std::span<float> buf) {
-	for (int i = 0; i < buf.size(); ++i) {
+	for (int i = 0; i < static_cast<int>(buf.size()); ++i) {
 		// Calculate delay for the forward-traveling wave to reach `pickup_pos_norm`
 		float fwd_delay_samps = pickup_pos_norm * half_delay_len;
 		float fwd_read_pos    = static_cast<float>(write_pos) - fwd_delay_samps;

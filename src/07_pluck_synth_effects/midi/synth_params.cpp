@@ -8,22 +8,43 @@ SynthParams::SynthParams() {
 
 	// descriptors define the full contract for each param
 	descs[static_cast<int>(ParamId::MasterGain)] = {
-	    0.0f, 1.0f, 1.0f, CCScale::Exp, "Master Gain", ""};
+	    0.0f, 1.0f, 1.0f, ParamScale::Power, "Master Gain", ""};
 	descs[static_cast<int>(ParamId::DecayTime)] = {
-	    Config::MIN_DECAY_MS, Config::MAX_DECAY_MS, 6000.0f, CCScale::Log, "Decay", "ms"};
+	    Config::MIN_DECAY_MS, Config::MAX_DECAY_MS, 6000.0f, ParamScale::Log, "Decay", "ms"};
 	descs[static_cast<int>(ParamId::PluckPos)] = {
-	    0.0f, 1.0f, 0.2f, CCScale::Linear, "Pluck Pos", ""};
+	    0.0f, 1.0f, 0.2f, ParamScale::Linear, "Pluck Pos", ""};
 	descs[static_cast<int>(ParamId::PickupPos)] = {
-	    Config::MIN_PICKUP_POS, 1.0f, 0.1f, CCScale::Linear, "Pickup Pos", ""};
+	    Config::MIN_PICKUP_POS, 1.0f, 0.2f, ParamScale::Linear, "Pickup Pos", ""};
 	descs[static_cast<int>(ParamId::AttackTime)] = {
-	    0.1f, Config::MAX_ATTACK_TIME, 0.1f, CCScale::Log, "Attack", "ms"};
+	    0.1f, Config::MAX_ATTACK_TIME, 0.1f, ParamScale::Log, "Attack", "ms"};
 	descs[static_cast<int>(ParamId::ReleaseTime)] = {
-	    1.0f, Config::MAX_RELEASE_TIME, 100.0f, CCScale::Log, "Release", "ms"};
+	    1.0f, Config::MAX_RELEASE_TIME, 100.0f, ParamScale::Log, "Release", "ms"};
+	descs[static_cast<int>(ParamId::FilterCutoff)] = {
+	    20.0f, 18000.0f, 8000.0f, ParamScale::Exponential, "Filter Cutoff", "Hz"};
+	descs[static_cast<int>(ParamId::FilterResonance)] = {
+	    0.0f, 1.0f, 0.5f, ParamScale::Linear, "Filter Resonance", ""};
 
 	// initialize param values to defaults
 	for (int i = 0; i < COUNT; ++i) {
 		auto &d = descs[i];
-		float t = (d.default_value - d.min) / (d.max - d.min);
+		float t;
+		switch (d.scale) {
+			case ParamScale::Exponential:
+				t = std::log(d.default_value / d.min) / std::log(d.max / d.min);
+				break;
+			case ParamScale::Log: {
+				// invert: log1p(t*9)/log(10) = normalized → solve for t
+				float norm = (d.default_value - d.min) / (d.max - d.min);
+				t          = (std::pow(10.0f, norm) - 1.0f) / 9.0f;
+				break;
+			}
+			case ParamScale::Power: {
+				float norm = (d.default_value - d.min) / (d.max - d.min);
+				t          = std::sqrt(norm);
+				break;
+			}
+			default: t = (d.default_value - d.min) / (d.max - d.min); break;
+		}
 		params[i].store(std::clamp(t, 0.0f, 1.0f));
 	}
 
@@ -34,6 +55,8 @@ SynthParams::SynthParams() {
 	    {17, ParamId::PickupPos},
 	    {18, ParamId::AttackTime},
 	    {19, ParamId::ReleaseTime},
+	    {20, ParamId::FilterCutoff},
+	    {21, ParamId::FilterResonance},
 	};
 }
 
@@ -41,38 +64,38 @@ void SynthParams::handle_cc(int cc, int value) {
 	auto it = cc_map.find(cc);
 	if (it == cc_map.end()) return;
 
-	int idx = static_cast<int>(it->second);
-	float t = apply_scale(value / 127.0f, descs[idx].scale);
-	params[idx].store(t);
+	params[static_cast<int>(it->second)].store(value / 127.0f);
 }
 
 float SynthParams::value(ParamId id) const {
 	int idx = static_cast<int>(id);
 	float t = params[idx].load();
 	auto &d = descs[idx];
-	return d.min + t * (d.max - d.min);
+
+	switch (d.scale) {
+		case ParamScale::Linear: return d.min + t * (d.max - d.min);
+
+		case ParamScale::Log:
+			// compresses low end, good for time params
+			t = std::log1p(t * 9.0f) / std::log(10.0f);
+			return d.min + t * (d.max - d.min);
+
+		case ParamScale::Power:
+			// expands low end, good for gain
+			t = t * t;
+			return d.min + t * (d.max - d.min);
+
+		case ParamScale::Exponential:
+			// equal intervals per octave, good for frequency
+			return d.min * std::pow(d.max / d.min, t);
+	}
+	return d.min;
 }
 
 float SynthParams::get(ParamId id) const { return params[static_cast<int>(id)].load(); }
 
 SynthParams::ParamDescriptor SynthParams::descriptor(SynthParams::ParamId id) const {
 	return descs[static_cast<int>(id)];
-}
-
-float SynthParams::apply_scale(float t, CCScale scale) {
-	// t is guaranteed 0-1 from handle_cc
-	switch (scale) {
-		case CCScale::Linear: return t;
-
-		case CCScale::Log:
-			// log1p avoids log(0); maps 0->0, 1->1 with compressed low end
-			return std::log1p(t * 9.0f) / std::log(10.0f);
-
-		case CCScale::Exp:
-			// quadratic curve, maps 0->0, 1->1 with expanded low end
-			return t * t;
-	}
-	return t;
 }
 
 std::optional<SynthParams::ParamId> SynthParams::cc_to_param(int cc) const {

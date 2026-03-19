@@ -14,19 +14,22 @@ public:
 		PickupPos,
 		AttackTime,
 		ReleaseTime,
+		FilterCutoff,
+		FilterResonance,
 		COUNT
 	};
 
-	enum class CCScale { Linear, Log, Exp };
+	enum class ParamScale { Linear, Log, Power, Exponential };
 
 	struct ParamDescriptor {
 		float min;
 		float max;
 		float default_value;
-		CCScale scale;
+		ParamScale scale;
 		const char *name;
 		const char *unit;
 	};
+
 	SynthParams();
 
 	// called by MIDI thread
@@ -42,7 +45,6 @@ public:
 	ParamDescriptor descriptor(ParamId id) const;
 
 private:
-	static float apply_scale(float t, CCScale scale);
 	static constexpr int COUNT = static_cast<int>(ParamId::COUNT);
 
 	std::array<std::atomic<float>, COUNT> params = {};

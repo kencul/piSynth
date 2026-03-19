@@ -1,24 +1,29 @@
 #pragma once
 #include "../adsr/adsr.hpp"
 #include "../config.hpp"
-#include "../midi/synth_params.hpp"
+#include "../effects/svf.hpp"
 #include "../osc/osc.hpp"
-#include <vector>
 #include <span>
+#include <vector>
 
 class Voice {
 public:
 	void init(int period_size);
-	void trigger(int midi_note, double hz, int velocity);
+	void trigger(int midi_note,
+	             double hz,
+	             int velocity,
+	             float attack,
+	             float decay,
+	             float pluck_pos,
+	             float pickup_pos);
 	void steal(int midi_note, double hz, int velocity);
-	void release();
+	void release(float release_time);
 
-	void process(std::span<float> mix_l, std::span<float> mix_r);
+	void process(std::span<float> mix_l, std::span<float> mix_r, float cutoff, float resonance);
 
 	Pluck osc {Config::SAMPLE_RATE};
 	ADSR envelope {Config::SAMPLE_RATE};
-
-	SynthParams *params = nullptr;
+	SVF filter {Config::SAMPLE_RATE};
 
 	int note    = -1;
 	bool active = false;

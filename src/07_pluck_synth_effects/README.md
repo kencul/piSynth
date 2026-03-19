@@ -246,3 +246,29 @@ These changes will make implementing master effects and voice effects easier.
 ### Span
 
 For restructuring purposes, I replaced most references to vectors or arrays with `span`. `Span` holds a pointer to the block of memory, as well as its length, but owns neither. This means that it combines passing `float *buf, int frames` into one object. Furthermore, it enables the use of iterators, such as `begin()` and `end()`, while disallowing memory allocation like `push_back()` or `pop()`. It can also be constructed with implicit conversions from `vector<float>`, `array<float, size>`, and `float*buf[size]`, meaning it is compatible with modern C++ and C callbacks.
+
+### Param Handling
+
+I also restructured the params so that it is the responsibility of `VoiceManager` to send all param data to the relavent objects. `Voice` no longer knows the existance of `SynthParams`.
+
+
+### Zero Delay SVF
+
+I implemented the same zero delay state variable filter that I made in my [STM32 Polyphonic Synth](https://github.com/kencul/STM32F4-AudioSynthesis/tree/main). It is light to compute, accurate, and stable at high resonance, so it works for this synth as well.
+
+Each voice of the synth has a separate instance of the filter, as it is a stateful filter. 
+
+One significant difference from the STM32 implementation is that I added keytracking to the filter cutoff. in `Voice::process()`:
+
+```cpp
+// scale cutoff to note pitch: doubles per octave above C4, halves below
+float tracking = std::pow(2.0f, (note - 60) / 12.0f);
+```
+
+This means the cutoff the user sets is what is applied to C4. When a note is in a separate octave, the cutoff is scaled. This means that low and high notes get the same timbral effect from the filter.
+
+### Multi MIDI Input
+
+As I ran out of CC knobs on my MIDI controller, I made a quick and scuffed MIDI CC controller with a Teensy 4.0 and one of my dual channel analog mux boards. This adds 8 more pots, with more that can be easily added in the future.
+
+To be able to use this, I converted the `MIDIReader::open` function to take a `initializer_list`, a read only view of brace-enclosed lists of values. In simple terms, `config.hpp` takes a list of MIDI device names in braces and tries to connect all of them to the synth.

@@ -8,6 +8,7 @@ add_executable(07_pluck_synth_effects
     voice/voice.cpp
     midi/synth_params.cpp
     effects/master_bus.cpp
+    effects/svf.cpp
 )
 
 target_include_directories(07_pluck_synth_effects PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
