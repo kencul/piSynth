@@ -1,15 +1,16 @@
 #include "svf.hpp"
+#include "../config.hpp"
 
-SVF::SVF(float sample_rate) : sample_rate(sample_rate) {
+SVF::SVF() {
 	set_cutoff(8000.0f);
 	set_resonance(0.0f);
 }
 
 void SVF::set_cutoff(float hz) {
-	hz = std::clamp(hz, 20.0f, sample_rate * 0.49f);
+	hz = std::clamp(hz, 20.0f, Config::SAMPLE_RATE * 0.49f);
 	if (hz == last_cutoff) return;
 	last_cutoff = hz;
-	g           = std::tan(std::numbers::pi * hz / sample_rate);
+	g           = std::tan(std::numbers::pi * hz / Config::SAMPLE_RATE);
 	update_coefficients();
 }
 

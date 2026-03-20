@@ -1,16 +1,14 @@
 #include "osc.hpp"
 
-Pluck::Pluck(double sample_rate) : sample_rate(sample_rate) {}
-
 void Pluck::set_frequency(double hz) {
 	frequency      = hz;
-	delay_len      = static_cast<float>(sample_rate / hz - 0.5f);
+	delay_len      = static_cast<float>(Config::SAMPLE_RATE / hz - 0.5f);
 	half_delay_len = delay_len / 2.0f;
 }
 
 void Pluck::set_decay(float decay_db_per_sec) {
 	float f0      = static_cast<float>(frequency);
-	float fs      = static_cast<float>(sample_rate);
+	float fs      = static_cast<float>(Config::SAMPLE_RATE);
 	float G       = std::pow(10.0f, -decay_db_per_sec / (20.0f * f0));
 	float A       = std::cos(static_cast<float>(M_PI) * f0 / fs);
 	feedback_gain = std::min((G / A) * 0.5f, 0.4995f);

@@ -21,9 +21,9 @@ public:
 
 	void process(std::span<float> mix_l, std::span<float> mix_r, float cutoff, float resonance);
 
-	Pluck osc {Config::SAMPLE_RATE};
-	ADSR envelope {Config::SAMPLE_RATE};
-	SVF filter {Config::SAMPLE_RATE};
+	Pluck osc {};
+	ADSR envelope {};
+	SVF filter {};
 
 	int note    = -1;
 	bool active = false;

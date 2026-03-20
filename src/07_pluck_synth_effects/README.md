@@ -277,3 +277,47 @@ To be able to use this, I converted the `MIDIReader::open` function to take a `i
 All global audio effeccts are put into a master bus, that runs after `VoiceManager::process()` in the audio loop. The audio loop runs `MasterBus::process()`, which then runs all the effects in one place. To begin, the `tanh` saturation and the master gain are put here.
 
 The `AudioEngine` only handles clamping for emergencies and int16 conversion.
+
+### Restructuring Config Value Fetching
+
+One aspect of programming I struggle with is structuring value fetching in a consistent way.
+
+For instance, in this project, there were a couple ways that the sample rate of the program was fetched by different classes.
+
+The two main methods were passing it by constructor, and fetching from the `Config` class.
+
+Some classes had the sample rate as a float parameter in the constructor. The parent object would pass the sample rate (however it gets it) to the object. This value gets stored as a member variable `sample_rate`. Some others import the `Config` class itself, then access it with `Config::SAMPLE_RATE`.
+
+Here, I decided that importing in each class that requires a value from it is what I'd like. I deleted the sample rate parameter from all constructors, and have the sample rate accessed with no caching whenever it is needed.
+
+### Effect Primitives
+
+Among the effects that will be made, some primitives are shared among them. As I build effects, I will build these primitives as small classes sorted in the `effects/primitives` directory.
+
+### Chorus Effect
+
+First, I built the chorus, as it is the most siginificant effect standalone, and the other effects will be more pronounced with a chorus.
+
+The primitives I built for this effect is a `delay_line` and a `lfo`.
+
+The `delay_line` is a simple ring buffer with linear interpolation read. It has protections against reading outside its bounds.
+
+The `lfo` is a decently robust implementation of an LFO. It handles multiple shapes:
+
+```cpp
+enum class Shape { Sine, Triangle, Square, SawUp, SawDown };
+```
+
+With these two primitives, creating a chorus effect is simplified. The chorus implemented here is a stereo chorus, where the right and left channels are modulated by a separate lfo and delay line pair.
+
+The LFO modulates the read position of the delay line, causing changing pitch shifting that oscillates around the original pitch. The right and left LFO's run at different rates, where the left one modulates at 1.2x the rate of the chorus, while the right one modulates at 0.8x. This means the right and left channels have different modulation, diverging and converging constantly, creating stereo width.
+
+Furthermore, the two delay lines read from different base delay positions (`Config::CHORUS_LEFT_BASE_MS` and `Config::CHORUS_RIGHT_BASE_MS`). This ensures that regardless of the LFO modulation, the left and right channels sound different. Even if the LFO's have low rate and are coincidentally at similar values, the left and right channels will sound different because the delay times are different.
+
+The depth of the chorus (the amplitude of the LFO) is tied to the rate of the chorus (frequency of the LFO). This can be seen in `Chorus::process()`:
+
+```cpp
+float depth_ms = Config::CHORUS_DEPTH_COUPLING / rate;
+```
+
+Coupling the depth with the rate is important as increasing the frequency of the LFO means the values change faster, causing more pitch shifting. To ensure changing the rate doesn't affect the depth, the depth is derived from the rate according to a constant (CHORUS_DEPTH_COUPLING). 

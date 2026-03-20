@@ -1,5 +1,6 @@
 #pragma once
 #include "../midi/synth_params.hpp"
+#include "chorus.hpp"
 #include <span>
 
 class MasterBus {
@@ -11,4 +12,5 @@ public:
 
 private:
 	SynthParams &params;
+	Chorus chorus;
 };

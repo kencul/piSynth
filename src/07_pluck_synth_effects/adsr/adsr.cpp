@@ -1,7 +1,6 @@
 #include "adsr.hpp"
+#include "../config.hpp"
 #include <algorithm>
-
-ADSR::ADSR(float sample_rate) : sample_rate(sample_rate) {}
 
 void ADSR::set_attack(float ms) { attack_rate = ms_to_rate(ms); }
 void ADSR::set_release(float ms) { release_rate = ms_to_rate(ms); }
@@ -17,7 +16,7 @@ void ADSR::release() {
 
 void ADSR::kill() {
 	// convert ms to a per-sample decrement from current level to 0
-	float kill_samples = Config::KILL_MS * 0.001f * sample_rate;
+	float kill_samples = Config::KILL_MS * 0.001f * Config::SAMPLE_RATE;
 	kill_rate          = level / kill_samples;
 	stage              = Stage::Kill;
 }
@@ -58,4 +57,4 @@ float ADSR::process() {
 bool ADSR::is_idle() const { return stage == Stage::Idle; }
 bool ADSR::is_releasing() const { return stage == Stage::Release; }
 
-float ADSR::ms_to_rate(float ms) const { return 1.0f / (ms * 0.001f * sample_rate); }
+float ADSR::ms_to_rate(float ms) const { return 1.0f / (ms * 0.001f * Config::SAMPLE_RATE); }

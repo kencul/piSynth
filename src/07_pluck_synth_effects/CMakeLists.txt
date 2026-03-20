@@ -9,6 +9,9 @@ add_executable(07_pluck_synth_effects
     midi/synth_params.cpp
     effects/master_bus.cpp
     effects/svf.cpp
+    effects/chorus.cpp
+    effects/primitives/delay_line.cpp
+    effects/primitives/lfo.cpp
 )
 
 target_include_directories(07_pluck_synth_effects PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})

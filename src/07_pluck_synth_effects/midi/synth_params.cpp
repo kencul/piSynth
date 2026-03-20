@@ -23,6 +23,16 @@ SynthParams::SynthParams() {
 	    20.0f, 18000.0f, 8000.0f, ParamScale::Exponential, "Filter Cutoff", "Hz"};
 	descs[static_cast<int>(ParamId::FilterResonance)] = {
 	    0.0f, 1.0f, 0.5f, ParamScale::Linear, "Filter Resonance", ""};
+	descs[static_cast<int>(ParamId::ChorusRate)]  = {Config::CHORUS_MIN_RATE_HZ,
+	                                                 Config::CHORUS_MAX_RATE_HZ,
+	                                                 1.0f,
+	                                                 ParamScale::Log,
+	                                                 "Chorus Rate",
+	                                                 "Hz"};
+	descs[static_cast<int>(ParamId::ChorusDepth)] = {
+	    0.0f, 2.0f, 1.0f, ParamScale::Linear, "Chorus Depth", ""};
+	descs[static_cast<int>(ParamId::ChorusMix)] = {
+	    0.0f, 1.0f, 0.0f, ParamScale::Linear, "Chorus Mix", ""};
 
 	// initialize param values to defaults
 	for (int i = 0; i < COUNT; ++i) {
@@ -57,6 +67,9 @@ SynthParams::SynthParams() {
 	    {19, ParamId::ReleaseTime},
 	    {20, ParamId::FilterCutoff},
 	    {21, ParamId::FilterResonance},
+	    {22, ParamId::ChorusRate},
+	    {23, ParamId::ChorusDepth},
+	    {24, ParamId::ChorusMix},
 	};
 }
 

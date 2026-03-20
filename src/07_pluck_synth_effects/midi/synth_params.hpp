@@ -16,6 +16,9 @@ public:
 		ReleaseTime,
 		FilterCutoff,
 		FilterResonance,
+		ChorusRate,
+		ChorusDepth,
+		ChorusMix,
 		COUNT
 	};
 

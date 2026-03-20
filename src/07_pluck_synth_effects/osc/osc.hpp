@@ -7,7 +7,7 @@
 
 class Pluck {
 public:
-	explicit Pluck(double sample_rate);
+	Pluck() = default;
 
 	void set_frequency(double hz);
 	void set_decay(float decay_db_per_sec);
@@ -25,7 +25,7 @@ private:
 	static constexpr int MAX_DELAY = 8192;
 
 	std::array<float, MAX_DELAY> delay_line = {};
-	int write_pos = 0;
+	int write_pos                           = 0;
 
 	float delay_len;
 	// Half the total delay length, representing one-way physical string length.
@@ -37,7 +37,6 @@ private:
 	float prev          = 0.0f;
 	float feedback_gain = 0.4995f;
 
-	double sample_rate;
 	double frequency = 440.0;
 
 	// DC block filter state

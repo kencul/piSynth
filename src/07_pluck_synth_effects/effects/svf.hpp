@@ -4,7 +4,7 @@
 
 class SVF {
 public:
-	explicit SVF(float sample_rate);
+	explicit SVF();
 
 	void set_cutoff(float hz);
 	void set_resonance(float resonance); // 0.0 (none) to 1.0 (self-oscillation)
@@ -17,7 +17,6 @@ private:
 
 	float fast_tanh(float x) const;
 
-	float sample_rate;
 	float g {0.0f};
 	float k {2.0f};
 	float a1 {0.0f};

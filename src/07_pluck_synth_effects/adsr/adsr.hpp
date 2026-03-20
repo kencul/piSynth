@@ -1,9 +1,8 @@
 #pragma once
-#include "../config.hpp"
 
 class ADSR {
 public:
-	explicit ADSR(float sample_rate = Config::SAMPLE_RATE);
+	ADSR() = default;
 
 	void set_attack(float ms);
 	void set_release(float ms);
@@ -26,5 +25,4 @@ private:
 	float attack_rate  = 0.0f;
 	float release_rate = 0.0f;
 	float kill_rate    = 0.0f;
-	float sample_rate;
 };
