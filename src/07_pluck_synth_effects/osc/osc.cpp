@@ -10,7 +10,7 @@ void Pluck::set_decay(float decay_db_per_sec) {
 	float f0      = static_cast<float>(frequency);
 	float fs      = static_cast<float>(Config::SAMPLE_RATE);
 	float G       = std::pow(10.0f, -decay_db_per_sec / (20.0f * f0));
-	float A       = std::cos(static_cast<float>(M_PI) * f0 / fs);
+	float A       = std::cos(std::numbers::pi_v<float> * f0 / fs);
 	feedback_gain = std::min((G / A) * 0.5f, 0.4995f);
 }
 

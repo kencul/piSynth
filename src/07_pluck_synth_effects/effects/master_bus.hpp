@@ -1,4 +1,5 @@
 #pragma once
+#include "../midi/smoothed_value.hpp"
 #include "../midi/synth_params.hpp"
 #include "chorus.hpp"
 #include <span>
@@ -12,5 +13,6 @@ public:
 
 private:
 	SynthParams &params;
+
 	Chorus chorus;
 };

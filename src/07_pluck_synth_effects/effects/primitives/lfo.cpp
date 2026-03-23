@@ -16,7 +16,7 @@ void LFO::reset() { phase = 0.0f; }
 float LFO::process() {
 	float value = 0.0f;
 	switch (shape) {
-		case Shape::Sine: value = std::sin(2.0f * std::numbers::pi * phase); break;
+		case Shape::Sine: value = std::sin(2.0f * std::numbers::pi_v<float> * phase); break;
 		case Shape::Triangle: value = 1.0f - 4.0f * std::abs(phase - 0.5f); break;
 		case Shape::Square: value = phase < 0.5f ? 1.0f : -1.0f; break;
 		case Shape::SawUp: value = 2.0f * phase - 1.0f; break;

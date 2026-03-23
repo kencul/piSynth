@@ -321,3 +321,19 @@ float depth_ms = Config::CHORUS_DEPTH_COUPLING / rate;
 ```
 
 Coupling the depth with the rate is important as increasing the frequency of the LFO means the values change faster, causing more pitch shifting. To ensure changing the rate doesn't affect the depth, the depth is derived from the rate according to a constant (CHORUS_DEPTH_COUPLING). 
+
+### Parameter Smoothing
+
+When sending CC messages, there is cracking that happens. This is because the parameter isn't being smoothed, causing the values to abruptly jump and cause zipper noise. As a one-pole filter is needed for a comb filter to create a reverb anyways, I will design a one-pole filter that can be used as a primitive for a comb filter as well as a paramter smoother.
+
+The `OnePole` class is a simple one pole low pass filter that accepts time, frequency and coefficient values to set its cutoff. This allows it to be used for multiple applications.
+
+The `SmoothedValue` class then takes this `OnePole` filter and wraps it to be used for smoothing parameter values. It takes a ms time value that represents how long it takes to reach 63% of the target value. This is standard definition in electric engineering and DSP, based on exp(-1).
+
+To apply smoothing to a param value with this class, add a `SmoothedValue` object for a param in the class that uses it, init the smoother with `SmoothedValue::reset()` to set the initial value, use `SmoothedValue::set_target` at the beginning of each audio block, then `SmoothedValue::next()` to get the next value every sample.
+
+This is important for params that directly affect the amplitude of the signal, such as the mix level of the chorus and master gain.
+
+Other values like chorus depth and rate want smoothing but doesn't have to be per sample. It can be smoothed per period instead. By adding a PerBlock granularity option, the `SmoothValue` can be used to smooth once per block, applying the smoothing time to be per block rather than per sample.
+
+However, the chorus still has clicking and zipper noise even when smoothing depth and rate by block. This is because these two values combined derive `depth_ms` in `Chorus`, which is the value that moves the read position of the chorus delay lines. This value can still move greatly per sample. So, instead of smoothing rate and depth, smoothing the derived `depth_ms` value per sample resulted in much cleaner output. I also clamped the minimum rate frequency to 1Hz, as changing the rate under 1Hz drastically changes `depth_ms`, causing zipper noise.

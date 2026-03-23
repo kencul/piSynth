@@ -30,7 +30,7 @@ SynthParams::SynthParams() {
 	                                                 "Chorus Rate",
 	                                                 "Hz"};
 	descs[static_cast<int>(ParamId::ChorusDepth)] = {
-	    0.0f, 2.0f, 1.0f, ParamScale::Linear, "Chorus Depth", ""};
+	    0.0f, Config::CHORUS_MAX_DEPTH_MULT, 1.0f, ParamScale::Linear, "Chorus Depth", ""};
 	descs[static_cast<int>(ParamId::ChorusMix)] = {
 	    0.0f, 1.0f, 0.0f, ParamScale::Linear, "Chorus Mix", ""};
 

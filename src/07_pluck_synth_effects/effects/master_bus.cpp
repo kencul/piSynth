@@ -5,7 +5,12 @@
 
 MasterBus::MasterBus(SynthParams &params) : params(params) {}
 
-void MasterBus::init(int period_size) { chorus.init(period_size); }
+void MasterBus::init(int period_size) {
+	chorus.init(period_size,
+	            params.value(SynthParams::ParamId::ChorusMix),
+	            params.value(SynthParams::ParamId::ChorusRate),
+	            params.value(SynthParams::ParamId::ChorusDepth));
+}
 
 void MasterBus::process(std::span<float> mix_l, std::span<float> mix_r) {
 	float mix   = params.value(SynthParams::ParamId::ChorusMix);

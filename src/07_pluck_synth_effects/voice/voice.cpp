@@ -21,8 +21,8 @@ void Voice::trigger(int midi_note,
 	                       Config::PAN_SPREAD);
 	float p   = (pan + 1.0f) * 0.5f;
 	// equal power panning
-	pan_left  = std::cos(p * static_cast<float>(M_PI) * 0.5f);
-	pan_right = std::sin(p * static_cast<float>(M_PI) * 0.5f);
+	pan_left  = std::cos(p * std::numbers::pi_v<float> * 0.5f);
+	pan_right = std::sin(p * std::numbers::pi_v<float> * 0.5f);
 
 	float velocity_gain = std::pow(velocity / 127.0f, 2.0f);
 

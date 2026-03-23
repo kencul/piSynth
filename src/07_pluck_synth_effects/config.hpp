@@ -56,12 +56,12 @@ inline constexpr float FILTER_KEYTRACK = 0.8f; // how much the filter cutoff tra
                                                // (0.0-2.0, where 1.0 means perfect tracking)
 // Chorus
 inline constexpr float CHORUS_LEFT_BASE_MS   = 13.0f;
-inline constexpr float CHORUS_RIGHT_BASE_MS   = 9.0f;
+inline constexpr float CHORUS_RIGHT_BASE_MS  = 9.0f;
 inline constexpr float CHORUS_DEPTH_COUPLING = 2.0f; // depth_ms = coupling / rate_hz
-inline constexpr float CHORUS_MIN_RATE_HZ    = 0.5f;
+inline constexpr float CHORUS_MIN_RATE_HZ    = 1.0f;
 inline constexpr float CHORUS_MAX_RATE_HZ    = 5.0f;
-// derived: max depth occurs at min rate: tap positions must exceed it
-// tap2 (9ms) - max_depth (4ms) = 5ms minimum, safe
-inline constexpr float CHORUS_MAX_DELAY_MS =
-    CHORUS_LEFT_BASE_MS + CHORUS_DEPTH_COUPLING / CHORUS_MIN_RATE_HZ + 1.0f;
+inline constexpr float CHORUS_MAX_DEPTH_MULT = 2.0f;
+// derived: largest possible read position across all param combinations
+inline constexpr float CHORUS_MAX_DELAY_MS = CHORUS_LEFT_BASE_MS
+    + (CHORUS_DEPTH_COUPLING / CHORUS_MIN_RATE_HZ) * CHORUS_MAX_DEPTH_MULT + 1.0f;
 } // namespace Config

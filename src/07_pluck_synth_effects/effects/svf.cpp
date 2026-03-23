@@ -10,7 +10,7 @@ void SVF::set_cutoff(float hz) {
 	hz = std::clamp(hz, 20.0f, Config::SAMPLE_RATE * 0.49f);
 	if (hz == last_cutoff) return;
 	last_cutoff = hz;
-	g           = std::tan(std::numbers::pi * hz / Config::SAMPLE_RATE);
+	g           = std::tan(std::numbers::pi_v<float> * hz / Config::SAMPLE_RATE);
 	update_coefficients();
 }
 

@@ -12,6 +12,8 @@ add_executable(07_pluck_synth_effects
     effects/chorus.cpp
     effects/primitives/delay_line.cpp
     effects/primitives/lfo.cpp
+    effects/primitives/one_pole.cpp
+    midi/smoothed_value.cpp
 )
 
 target_include_directories(07_pluck_synth_effects PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
