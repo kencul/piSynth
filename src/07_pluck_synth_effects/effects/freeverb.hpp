@@ -24,7 +24,7 @@ private:
 
 	std::array<Comb, NUM_COMBS> combs_l, combs_r;
 	std::array<Allpass, NUM_ALLPASSES> allpasses_l, allpasses_r;
-	float wet {0.4f};
-	float cutoff_freq {6000.0f};
+	float wet {0.3f};
+	float cutoff_freq {12000.0f};
 	float room_size {0.0f};
 };

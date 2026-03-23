@@ -341,3 +341,31 @@ However, the chorus still has clicking and zipper noise even when smoothing dept
 Per sample smoothing is applied to the gain in `MasterBus`, as well as to the filter cutoff and resonance.
 
 Applying smoothing to filter cutoff and resonance was slightly complicated. As the cutoff value is passed to each voice, which processes the entire period, each voice needs to be able to get the smoothed values for each sample. However, all 8 voices use the same smoothed value, so having a `SmoothedValue` object for each voice is wasteful. The solution used here is to have once `SmoothedValue` in `VoiceManager`. Every period, `VoiceManager` calculates the cutoff and resonance values for the entire period, and passes the span of cutoff and resonance values to the voice. This way, all voices can reuse the same values, while maintaining per sample smoothing.
+
+
+### Comb Filter
+
+The comb filter, implemented as the `Comb` class, is a delay line with a feedback loop that goes through the `OnePole` filter multiplied by a gain. The output of the delay line is the resulting output of the filter. This results in a impulse response that slowly decays, and an amplitude response that looks like a comb. This filter approximates the reflections off walls that creates reverb. The delay line is the time it takes for the sound to reflect back, the filter in the feedback is the loss of high frequency as it bounces off walls, and the gain reduction is the loss of power as it reflects. To better simulate a reverb, multiple comb filters can be applied in parallel with different delay times to create numerous amounts of reflections.
+
+### Allpass Filter
+
+The allpass filter, implemented as the `Allpass` class, is a delay line with a feedback and a feed forward loop. the feedback is multiplied by the gain, while the feedforward is multiplied by the inverse of gain. The allpass filter results in theoretically flat amplitude response, meaning it doesn't change the sound at all. It does affect the phase of the sound, however, which smears sharp transients, while letting continous sounds through mostly untouched. Applying an allpass therefore smears sharp sounds, such as echoes caused by comb filters.
+
+### Freeverb Filter
+
+The freeverb filter structure has 8 comb filters in parallel going into 4 allpass filters in series. The 8 comb filters are set to specific delay times that do not share common factors. This means these filters cause intermitten echoes of the input audio. However, these comb filters alone sound sparse and distinct, having a metallic characteristic. To make it sound more natural, the resulting output of the comb filters go through 4 allpass filters in a row. These allpass filters have short delay times that decrease in length. Each allpass filter smears the distinct echoes of the comb filters, with each filter further scattering the sound.
+
+The end result is a lush and dense wash of echos that is percieved as reverb. This implementation can be seen in the `Freeverb` class.
+
+To handle stereo, the strucutre is duplicated per channel, and all delays are increased by 5ms on one side. The incoming stereo audio is mixed down to mono, then fed to both channels to intertwine the channels in the reverb.
+
+The room size is derived as such:
+
+```cpp
+float feedback = 0.68f + clamped_room_size * 0.28f
+```
+
+This value is then set as the gain value for all comb filters.
+
+Damping affects how quickly high frequencies get filtered out in the reverberation. Setting the filter cutoff of each comb filter achieves this effect.
+

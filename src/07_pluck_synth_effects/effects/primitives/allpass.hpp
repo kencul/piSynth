@@ -3,7 +3,7 @@
 
 class Allpass {
 public:
-	void init(int delay_ms);
+	void init(float delay_ms);
 	float process(float input);
 	void set_gain(float gain) { this->gain = gain; }
 

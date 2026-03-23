@@ -12,20 +12,21 @@ void Freeverb::init() {
 		allpasses_r[i].init(ALLPASS_DELAYS_MS[i] + RIGHT_CHANNEL_OFFSET_MS);
 	}
 
-	set_room_size(0.5f); // default room size
+	set_room_size(0.9f); // default room size
 }
 
 void Freeverb::process(std::span<float> mix_l, std::span<float> mix_r) {
 	for (size_t i = 0; i < mix_l.size(); ++i) {
-		float input_l = mix_l[i];
-		float input_r = mix_r[i];
+		// float input_l = mix_l[i];
+		// float input_r = mix_r[i];
+		float input_mono = (mix_l[i] + mix_r[i]) * 0.5f;
 
 		float out_l = 0.0f;
 		float out_r = 0.0f;
 
 		for (int j = 0; j < NUM_COMBS; ++j) {
-			out_l += combs_l[j].process(input_l);
-			out_r += combs_r[j].process(input_r);
+			out_l += combs_l[j].process(input_mono);
+			out_r += combs_r[j].process(input_mono);
 		}
 
 		out_l /= static_cast<float>(NUM_COMBS);
@@ -36,8 +37,8 @@ void Freeverb::process(std::span<float> mix_l, std::span<float> mix_r) {
 			out_r = allpasses_r[j].process(out_r);
 		}
 
-		mix_l[i] = input_l * (1.0f - wet) + out_l * wet;
-		mix_r[i] = input_r * (1.0f - wet) + out_r * wet;
+		mix_l[i] = mix_l[i] * (1.0f - wet) + out_l * wet;
+		mix_r[i] = mix_r[i] * (1.0f - wet) + out_r * wet;
 	}
 }
 

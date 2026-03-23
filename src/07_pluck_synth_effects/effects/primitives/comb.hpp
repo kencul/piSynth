@@ -4,7 +4,7 @@
 
 class Comb {
 public:
-	void init(int delay_ms, float cutoff_hz);
+	void init(float delay_ms, float cutoff_hz);
 	float process(float input);
 	void set_gain(float gain) { this->gain = gain; }
 	void set_cutoff(float cutoff_hz);
