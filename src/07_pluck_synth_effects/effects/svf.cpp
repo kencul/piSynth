@@ -16,9 +16,9 @@ void SVF::set_cutoff(float hz) {
 
 void SVF::set_resonance(float resonance) {
 	// k maps 0->2.0 (no resonance) to 0->0.01 (self-oscillation)
-	k = std::max(2.0f * (1.0f - std::clamp(resonance, 0.0f, 1.0f)), 0.01f);
 	if (resonance == last_resonance) return;
 	last_resonance = resonance;
+	k              = std::max(2.0f * (1.0f - std::clamp(resonance, 0.0f, 1.0f)), 0.01f);
 	update_coefficients();
 }
 

@@ -27,9 +27,9 @@ private:
 	std::array<float, MAX_DELAY> delay_line = {};
 	int write_pos                           = 0;
 
-	float delay_len;
+	float delay_len = 0.0f;
 	// Half the total delay length, representing one-way physical string length.
-	float half_delay_len;
+	float half_delay_len = 0.0f;
 
 	// Normalized position (0.0=nut, 1.0=bridge) where output is "picked up".
 	float pickup_pos_norm;
