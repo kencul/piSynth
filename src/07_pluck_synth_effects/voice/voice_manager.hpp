@@ -1,6 +1,7 @@
 #pragma once
 #include "../adsr/adsr.hpp"
 #include "../config.hpp"
+#include "../midi/smoothed_value.hpp"
 #include "../midi/synth_params.hpp"
 #include "note_event.hpp"
 #include "voice.hpp"
@@ -30,4 +31,9 @@ private:
 	// tracks insertion order for oldest-voice stealing
 	std::array<int, Config::MAX_VOICES> voice_age = {};
 	uint32_t age_counter                          = 0;
+
+	std::vector<float> cutoff_buf;
+	std::vector<float> resonance_buf;
+	SmoothedValue cutoff_smoother {20.0f};
+	SmoothedValue resonance_smoother {20.0f};
 };

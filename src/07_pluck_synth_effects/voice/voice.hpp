@@ -19,7 +19,10 @@ public:
 	void steal(int midi_note, double hz, int velocity);
 	void release(float release_time);
 
-	void process(std::span<float> mix_l, std::span<float> mix_r, float cutoff, float resonance);
+	void process(std::span<float> mix_l,
+	             std::span<float> mix_r,
+	             std::span<const float> cutoff_buf,
+	             std::span<const float> resonance_buf);
 
 	Pluck osc {};
 	ADSR envelope {};

@@ -10,6 +10,8 @@ void MasterBus::init(int period_size) {
 	            params.value(SynthParams::ParamId::ChorusMix),
 	            params.value(SynthParams::ParamId::ChorusRate),
 	            params.value(SynthParams::ParamId::ChorusDepth));
+
+	gain_smoother.reset(params.value(SynthParams::ParamId::MasterGain));
 }
 
 void MasterBus::process(std::span<float> mix_l, std::span<float> mix_r) {
@@ -18,9 +20,10 @@ void MasterBus::process(std::span<float> mix_l, std::span<float> mix_r) {
 	float depth = params.value(SynthParams::ParamId::ChorusDepth);
 	chorus.process(mix_l, mix_r, rate, depth, mix);
 
-	float gain = params.value(SynthParams::ParamId::MasterGain);
+	gain_smoother.set_target(params.value(SynthParams::ParamId::MasterGain));
 
 	for (int i = 0; i < static_cast<int>(mix_l.size()); ++i) {
+		float gain = gain_smoother.next();
 		// soft clip via tanh, then restore level — acts as a bus limiter
 		mix_l[i] = std::tanh(mix_l[i] * Config::SATURATION_DRIVE) / Config::SATURATION_DRIVE;
 		mix_r[i] = std::tanh(mix_r[i] * Config::SATURATION_DRIVE) / Config::SATURATION_DRIVE;

@@ -15,4 +15,6 @@ private:
 	SynthParams &params;
 
 	Chorus chorus;
+
+	SmoothedValue gain_smoother {20.0f};
 };
