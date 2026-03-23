@@ -2,6 +2,7 @@
 #include "../../config.hpp"
 #include <algorithm>
 #include <cmath>
+#include <numbers> // pi_v
 
 LFO::LFO() { set_rate(1.0f); }
 

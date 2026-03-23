@@ -18,7 +18,7 @@ bool AudioEngine::open(const char *device) {
 	if (!configure_device()) return false;
 
 	voice_manager.init(period_size);
-	master_bus.init(period_size);
+	master_bus.init();
 
 	mix_l.assign(period_size, 0.0f);
 	mix_r.assign(period_size, 0.0f);
@@ -44,6 +44,8 @@ bool AudioEngine::configure_device() {
 		std::cerr << "AudioEngine: failed to apply hw params: " << snd_strerror(err) << "\n";
 		return false;
 	}
+
+	Config::SAMPLE_RATE = sample_rate;
 
 	std::cout << "AudioEngine: rate=" << sample_rate << " period=" << period_size
 	          << " buffer=" << buffer_size << "\n";

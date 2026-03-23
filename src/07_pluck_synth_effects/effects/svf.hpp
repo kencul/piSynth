@@ -1,6 +1,7 @@
 #pragma once
 #include <algorithm>
 #include <cmath>
+#include <numbers>
 
 class SVF {
 public:
@@ -25,4 +26,5 @@ private:
 	float s1 {0.0f};
 	float s2 {0.0f};
 	float last_cutoff {0.0f};
+	float last_resonance {0.0f};
 };

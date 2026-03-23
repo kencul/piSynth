@@ -1,8 +1,8 @@
 #pragma once
 #include "../adsr/adsr.hpp"
+#include "../common/smoothed_value.hpp"
+#include "../common/synth_params.hpp"
 #include "../config.hpp"
-#include "../midi/smoothed_value.hpp"
-#include "../midi/synth_params.hpp"
 #include "note_event.hpp"
 #include "voice.hpp"
 #include <array>
@@ -16,8 +16,6 @@ public:
 	void handle(const NoteEvent &ev);
 	void process(std::span<float> mix_l, std::span<float> mix_r);
 
-	void trigger_note(Voice &voice, int midi_note, double hz, int velocity);
-
 private:
 	SynthParams &params;
 
@@ -26,6 +24,7 @@ private:
 	// returns index of a free voice, or steals the oldest if all active
 	int allocate_voice();
 
+	void trigger_note(Voice &voice, int midi_note, double hz, int velocity);
 	static double midi_to_hz(int note);
 
 	// tracks insertion order for oldest-voice stealing

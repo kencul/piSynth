@@ -5,7 +5,7 @@ Chorus::Chorus() {
 	lfo_r.set_shape(LFO::Shape::Sine);
 }
 
-void Chorus::init(int /*period_size*/, float initial_mix, float initial_rate, float initial_depth) {
+void Chorus::init(float initial_mix, float initial_rate, float initial_depth) {
 	int max_samples = static_cast<int>(ms_to_samples(Config::CHORUS_MAX_DELAY_MS)) + 2;
 	delay_l.init(max_samples);
 	delay_r.init(max_samples);

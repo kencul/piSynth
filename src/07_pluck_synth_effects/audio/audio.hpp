@@ -1,7 +1,7 @@
 #pragma once
+#include "../common/synth_params.hpp"
 #include "../config.hpp"
 #include "../effects/master_bus.hpp"
-#include "../midi/synth_params.hpp"
 #include "../voice/note_event.hpp"
 #include "../voice/ring_buffer.hpp"
 #include "../voice/voice_manager.hpp"

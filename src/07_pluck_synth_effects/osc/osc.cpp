@@ -1,4 +1,5 @@
 #include "osc.hpp"
+#include <numbers> // for pi_v
 
 void Pluck::set_frequency(double hz) {
 	frequency      = hz;

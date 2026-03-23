@@ -1,7 +1,7 @@
 #pragma once
+#include "../common/synth_params.hpp"
 #include "../voice/note_event.hpp"
 #include "../voice/ring_buffer.hpp"
-#include "synth_params.hpp"
 #include <alsa/asoundlib.h>
 #include <atomic>
 #include <thread>
@@ -32,6 +32,4 @@ private:
 
 	// MIDI CC Handling
 	SynthParams &params;
-
-	void handle_cc(int cc, int value);
 };

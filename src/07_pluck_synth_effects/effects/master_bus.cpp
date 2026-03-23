@@ -5,9 +5,8 @@
 
 MasterBus::MasterBus(SynthParams &params) : params(params) {}
 
-void MasterBus::init(int period_size) {
-	chorus.init(period_size,
-	            params.value(SynthParams::ParamId::ChorusMix),
+void MasterBus::init() {
+	chorus.init(params.value(SynthParams::ParamId::ChorusMix),
 	            params.value(SynthParams::ParamId::ChorusRate),
 	            params.value(SynthParams::ParamId::ChorusDepth));
 

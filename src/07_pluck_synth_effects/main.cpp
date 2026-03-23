@@ -1,7 +1,7 @@
 #include "audio/audio.hpp"
+#include "common/synth_params.hpp"
 #include "config.hpp"
 #include "midi/midi.hpp"
-#include "midi/synth_params.hpp"
 #include "voice/note_event.hpp"
 #include "voice/ring_buffer.hpp"
 #include <atomic>
