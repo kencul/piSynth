@@ -9,6 +9,7 @@ void MasterBus::init() {
 	chorus.init(params.value(SynthParams::ParamId::ChorusMix),
 	            params.value(SynthParams::ParamId::ChorusRate),
 	            params.value(SynthParams::ParamId::ChorusDepth));
+	freeverb.init();
 
 	gain_smoother.reset(params.value(SynthParams::ParamId::MasterGain));
 }
@@ -18,6 +19,8 @@ void MasterBus::process(std::span<float> mix_l, std::span<float> mix_r) {
 	float rate  = params.value(SynthParams::ParamId::ChorusRate);
 	float depth = params.value(SynthParams::ParamId::ChorusDepth);
 	chorus.process(mix_l, mix_r, rate, depth, mix);
+
+	freeverb.process(mix_l, mix_r);
 
 	gain_smoother.set_target(params.value(SynthParams::ParamId::MasterGain));
 

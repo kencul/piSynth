@@ -14,6 +14,9 @@ add_executable(07_pluck_synth_effects
     effects/primitives/lfo.cpp
     effects/primitives/one_pole.cpp
     common/smoothed_value.cpp
+    effects/primitives/allpass.cpp
+    effects/primitives/comb.cpp
+    effects/freeverb.cpp
 )
 
 target_include_directories(07_pluck_synth_effects PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})

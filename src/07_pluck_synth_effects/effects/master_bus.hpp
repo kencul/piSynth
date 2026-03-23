@@ -2,6 +2,7 @@
 #include "../common/smoothed_value.hpp"
 #include "../common/synth_params.hpp"
 #include "chorus.hpp"
+#include "freeverb.hpp"
 #include <span>
 
 class MasterBus {
@@ -15,6 +16,7 @@ private:
 	SynthParams &params;
 
 	Chorus chorus;
+	Freeverb freeverb;
 
 	SmoothedValue gain_smoother {20.0f};
 };
