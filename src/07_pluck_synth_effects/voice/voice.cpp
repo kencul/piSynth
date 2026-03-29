@@ -49,20 +49,19 @@ void Voice::release(float release_time) {
 
 void Voice::process(std::span<float> mix_l,
                     std::span<float> mix_r,
-                    std::span<const float> cutoff_buf,
-                    std::span<const float> resonance_buf) {
+                    float cutoff_hz,
+                    float resonance) {
 	assert(mix_l.size() == tmp.size());
 	assert(mix_r.size() == tmp.size());
 
 	// scale cutoff to note pitch
 	float tracking = std::pow(2.0f, (note - 60) / 12.0f * Config::FILTER_KEYTRACK);
+	filter.set_cutoff(cutoff_hz * tracking);
+	filter.set_resonance(resonance);
 
 	osc.process(tmp);
 
 	for (int i = 0; i < static_cast<int>(tmp.size()); ++i) {
-		filter.set_cutoff(cutoff_buf[i] * tracking);
-		filter.set_resonance(resonance_buf[i]);
-
 		float s = filter.process(tmp[i]) * envelope.process();
 		mix_l[i] += s * pan_left;
 		mix_r[i] += s * pan_right;

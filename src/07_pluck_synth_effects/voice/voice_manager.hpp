@@ -31,8 +31,6 @@ private:
 	std::array<int, Config::MAX_VOICES> voice_age = {};
 	uint32_t age_counter                          = 0;
 
-	std::vector<float> cutoff_buf;
-	std::vector<float> resonance_buf;
-	SmoothedValue cutoff_smoother {20.0f};
-	SmoothedValue resonance_smoother {20.0f};
+	SmoothedValue cutoff_smoother {20.0f, SmoothedValue::Granularity::PerBlock};
+	SmoothedValue resonance_smoother {20.0f, SmoothedValue::Granularity::PerBlock};
 };

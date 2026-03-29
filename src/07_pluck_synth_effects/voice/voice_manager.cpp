@@ -7,8 +7,6 @@
 
 void VoiceManager::init(int period_size) {
 	for (auto &v : voices) v.init(period_size);
-	cutoff_buf.resize(period_size);
-	resonance_buf.resize(period_size);
 	cutoff_smoother.reset(params.value(SynthParams::ParamId::FilterCutoff));
 	resonance_smoother.reset(params.value(SynthParams::ParamId::FilterResonance));
 }
@@ -39,16 +37,13 @@ void VoiceManager::process(std::span<float> mix_l, std::span<float> mix_r) {
 	cutoff_smoother.set_target(params.value(SynthParams::ParamId::FilterCutoff));
 	resonance_smoother.set_target(params.value(SynthParams::ParamId::FilterResonance));
 
-	// advance smoothers once per sample into buffers
-	for (int i = 0; i < static_cast<int>(mix_l.size()); ++i) {
-		cutoff_buf[i]    = cutoff_smoother.next();
-		resonance_buf[i] = resonance_smoother.next();
-	}
+	float cutoff_hz = cutoff_smoother.next();
+	float resonance = resonance_smoother.next();
 
 	for (auto &v : voices) {
 		if (!v.active) continue;
 
-		v.process(mix_l, mix_r, cutoff_buf, resonance_buf);
+		v.process(mix_l, mix_r, cutoff_hz, resonance);
 
 		if (!v.envelope.is_idle()) continue;
 
