@@ -20,7 +20,7 @@ public:
 		ChorusDepth,
 		ChorusMix,
 		ReverbRoomSize,
-		ReverbDamping,
+		ReverbCutoff,
 		ReverbMix,
 		COUNT
 	};

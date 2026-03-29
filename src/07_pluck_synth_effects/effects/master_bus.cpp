@@ -10,7 +10,7 @@ void MasterBus::init() {
 	            params.value(SynthParams::ParamId::ChorusRate),
 	            params.value(SynthParams::ParamId::ChorusDepth));
 	freeverb.init(params.value(SynthParams::ParamId::ReverbRoomSize),
-	              params.value(SynthParams::ParamId::ReverbDamping),
+	              params.value(SynthParams::ParamId::ReverbCutoff),
 	              params.value(SynthParams::ParamId::ReverbMix));
 
 	gain_smoother.reset(params.value(SynthParams::ParamId::MasterGain));
@@ -22,11 +22,11 @@ void MasterBus::process(std::span<float> mix_l, std::span<float> mix_r) {
 	float chorus_depth = params.value(SynthParams::ParamId::ChorusDepth);
 	chorus.process(mix_l, mix_r, chorus_rate, chorus_depth, chorus_mix);
 
-	float reverb_room_size = params.value(SynthParams::ParamId::ReverbRoomSize);
-	float reverb_damping   = params.value(SynthParams::ParamId::ReverbDamping);
-	float reverb_mix       = params.value(SynthParams::ParamId::ReverbMix);
+	float reverb_room_size   = params.value(SynthParams::ParamId::ReverbRoomSize);
+	float reverb_cutoff_freq = params.value(SynthParams::ParamId::ReverbCutoff);
+	float reverb_mix         = params.value(SynthParams::ParamId::ReverbMix);
 
-	freeverb.process(mix_l, mix_r, reverb_room_size, reverb_damping, reverb_mix);
+	freeverb.process(mix_l, mix_r, reverb_room_size, reverb_cutoff_freq, reverb_mix);
 
 	gain_smoother.set_target(params.value(SynthParams::ParamId::MasterGain));
 

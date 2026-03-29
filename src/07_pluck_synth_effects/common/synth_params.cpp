@@ -35,11 +35,15 @@ SynthParams::SynthParams() {
 	    0.0f, 1.0f, 0.0f, ParamScale::Linear, "Chorus Mix", ""};
 	descs[static_cast<int>(ParamId::ReverbRoomSize)] = {
 	    0.0f, 1.0f, 0.9f, ParamScale::Linear, "Reverb Room Size", ""};
-	descs[static_cast<int>(ParamId::ReverbDamping)] = {
-	    0.0f, 1.0f, 0.5f, ParamScale::Linear, "Reverb Damping", ""};
-	descs[static_cast<int>(ParamId::ReverbMix)] = {
-	    0.0f, 1.0f, 0.3f, ParamScale::Linear, "Reverb Mix", ""};
-		
+	descs[static_cast<int>(ParamId::ReverbCutoff)] = {Config::REVERB_MIN_CUTOFF_HZ,
+	                                                  Config::REVERB_MAX_CUTOFF_HZ,
+	                                                  5000.0f,
+	                                                  ParamScale::Exponential,
+	                                                  "Reverb Cutoff",
+	                                                  "Hz"};
+	descs[static_cast<int>(ParamId::ReverbMix)]    = {
+        0.0f, 1.0f, 0.5f, ParamScale::Linear, "Reverb Mix", ""};
+
 	// initialize param values to defaults
 	for (int i = 0; i < COUNT; ++i) {
 		auto &d = descs[i];
@@ -76,9 +80,9 @@ SynthParams::SynthParams() {
 	    {22, ParamId::ChorusRate},
 	    {23, ParamId::ChorusDepth},
 	    {24, ParamId::ChorusMix},
-		{26, ParamId::ReverbRoomSize},
-		{27, ParamId::ReverbDamping},
-		{28, ParamId::ReverbMix},
+	    {26, ParamId::ReverbRoomSize},
+	    {27, ParamId::ReverbCutoff},
+	    {28, ParamId::ReverbMix},
 	};
 }
 

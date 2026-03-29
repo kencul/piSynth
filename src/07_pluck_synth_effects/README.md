@@ -369,3 +369,8 @@ This value is then set as the gain value for all comb filters.
 
 Damping affects how quickly high frequencies get filtered out in the reverberation. Setting the filter cutoff of each comb filter achieves this effect.
 
+The room size, damping, and mix level is then exposed as parameters controllable with MIDI CC. These are mostly standard:
+
+Room size and mix level are both linearly scaled from 0 to 1. The big difference is that the mix level is smoothed per sample, while room size is per block. This is because if the mix level isn't smoothed per sample, there is crackling, similar to the behavior with the chorus effect.
+
+Cutoff freq is scaled from `Config::REVERB_MIN_CUTOFF_HZ` to `Config::REVERB_MAX_CUTOFF_HZ`, set in `config.hpp`. The paramter has exponential scaling between these values, and the parameter shows the cutoff as Hz values. This paramter has per block smoothing in the reverb effect itself.

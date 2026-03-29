@@ -4,7 +4,8 @@
 
 namespace Config {
 // Audio
-inline unsigned int SAMPLE_RATE           = 48000; // not constecpr because ALSA sample rate is determined at runtime
+inline unsigned int SAMPLE_RATE =
+    48000; // not constecpr because ALSA sample rate is determined at runtime
 inline constexpr unsigned int PERIOD_SIZE = 64;
 inline constexpr unsigned int BUFFER_SIZE = PERIOD_SIZE * 4;
 inline constexpr unsigned int CHANNELS    = 2;
@@ -64,4 +65,8 @@ inline constexpr float CHORUS_MAX_DEPTH_MULT = 2.0f;
 // derived: largest possible read position across all param combinations
 inline constexpr float CHORUS_MAX_DELAY_MS = CHORUS_LEFT_BASE_MS
     + (CHORUS_DEPTH_COUPLING / CHORUS_MIN_RATE_HZ) * CHORUS_MAX_DEPTH_MULT + 1.0f;
+
+// Reverb
+inline constexpr float REVERB_MIN_CUTOFF_HZ = 1000.0f;
+inline constexpr float REVERB_MAX_CUTOFF_HZ = 10000.0f;
 } // namespace Config

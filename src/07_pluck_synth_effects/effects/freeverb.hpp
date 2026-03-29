@@ -6,9 +6,9 @@
 
 class Freeverb {
 public:
-	void init(float room_size, float damping, float mix);
+	void init(float room_size, float cutoff_freq, float mix);
 	void process(
-	    std::span<float> mix_l, std::span<float> mix_r, float room_size, float damping, float mix);
+	    std::span<float> mix_l, std::span<float> mix_r, float room_size, float cutoff_freq, float mix);
 
 private:
 	static constexpr int NUM_COMBS     = 8;
@@ -22,16 +22,15 @@ private:
 	    5.0f; // small offset to decorrelate left and right channels
 
 	void set_room_size(float room_size);
-	void update_damping(float damping);
-	float map_damping_to_cutoff(float damping);
+	void update_cutoff(float cutoff_freq);
 
 	std::array<Comb, NUM_COMBS> combs_l, combs_r;
 	std::array<Allpass, NUM_ALLPASSES> allpasses_l, allpasses_r;
 
 	float last_room_size = 0.0f;
-	float last_damping   = 0.0f;
+	float last_cutoff_freq = 0.0f;
 
 	SmoothedValue mix_smoother {20.0f};
-	SmoothedValue damping_smoother {20.0f, SmoothedValue::Granularity::PerBlock};
+	SmoothedValue cutoff_smoother {20.0f, SmoothedValue::Granularity::PerBlock};
 	SmoothedValue room_size_smoother {20.0f, SmoothedValue::Granularity::PerBlock};
 };
