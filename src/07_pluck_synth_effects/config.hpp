@@ -69,4 +69,8 @@ inline constexpr float CHORUS_MAX_DELAY_MS = CHORUS_LEFT_BASE_MS
 // Reverb
 inline constexpr float REVERB_MIN_CUTOFF_HZ = 1000.0f;
 inline constexpr float REVERB_MAX_CUTOFF_HZ = 10000.0f;
+
+// Ping Pong Delay
+inline constexpr float PING_PONG_MAX_DELAY_MS       = 1000.0f;
+inline constexpr float PING_PONG_FEEDBACK_CUTOFF_HZ = 6000.0f;
 } // namespace Config

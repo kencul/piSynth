@@ -12,6 +12,9 @@ void MasterBus::init() {
 	freeverb.init(params.value(SynthParams::ParamId::ReverbRoomSize),
 	              params.value(SynthParams::ParamId::ReverbCutoff),
 	              params.value(SynthParams::ParamId::ReverbMix));
+	ping_pong.init(params.value(SynthParams::ParamId::DelayTime),
+	               params.value(SynthParams::ParamId::DelayFeedback),
+	               params.value(SynthParams::ParamId::DelayMix));
 
 	gain_smoother.reset(params.value(SynthParams::ParamId::MasterGain));
 }
@@ -27,6 +30,11 @@ void MasterBus::process(std::span<float> mix_l, std::span<float> mix_r) {
 	float reverb_mix         = params.value(SynthParams::ParamId::ReverbMix);
 
 	freeverb.process(mix_l, mix_r, reverb_room_size, reverb_cutoff_freq, reverb_mix);
+
+	float delay_time     = params.value(SynthParams::ParamId::DelayTime);
+	float delay_feedback = params.value(SynthParams::ParamId::DelayFeedback);
+	float delay_mix      = params.value(SynthParams::ParamId::DelayMix);
+	ping_pong.process(mix_l, mix_r, delay_time, delay_feedback, delay_mix);
 
 	gain_smoother.set_target(params.value(SynthParams::ParamId::MasterGain));
 

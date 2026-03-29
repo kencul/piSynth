@@ -378,3 +378,14 @@ Cutoff freq is scaled from `Config::REVERB_MIN_CUTOFF_HZ` to `Config::REVERB_MAX
 ### SVF Optimization
 
 One small optimization I made for the SVF, was changing it to have per sample smoothing. Changing the cutoff of the filter requires a call to `tan()`, a costly operation. To avoid this, I changed the cutoff to be consistent across a period, meaning ther are 8 `tan()` calls per period (one per voice), instead of a `tan()` per voice per sample, or 256 calls per period. Testing this change made no noticable difference in filter sweeps, so I kept this change.
+
+
+### Ping Pong Delay
+
+With the primitives that I've made so far, making a ping pong delay effect is pretty easy. It consists of 2 delay lines, one for each channel, piping into each other in turn. The feedback is treated with a one-pole LPF.
+
+In `config.hpp`, `PING_PONG_MAX_DELAY_MS` has to be set, as the delay lines need a max delay time set. This is set to 1000ms for now. The cutoff frequency of the lowpass filters in the feedback loop is set here as well in `PING_PONG_FEEDBACK_CUTOFF_HZ` to 6000Hz. This value has merit to being a parameter, but my lack of CC knobs forced me to keep this a constant for now.
+
+The exposed parameters are for this effect is the delay time, feedback amount, and mix level. The delay time goes from 1ms to 1000ms with power scaling, as values around 100ms are more musical in this context. In the context with beat matching, longer delay times are musically viable, so more emphasis would be put on the higher ranges, but can be mostly be left alone in this case.
+
+The feedback amound and mix level are both 0-1 linear scalings. The mix level and delay time are both per sample smoothing. Mix level for the same reason as the reverb and chorus, and delay time to make the dopper effect when changing the delay time during delay tails have less artifacts.

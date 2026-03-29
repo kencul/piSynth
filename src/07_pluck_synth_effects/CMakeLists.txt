@@ -17,6 +17,7 @@ add_executable(07_pluck_synth_effects
     effects/primitives/allpass.cpp
     effects/primitives/comb.cpp
     effects/freeverb.cpp
+    effects/ping_pong.cpp
 )
 
 target_include_directories(07_pluck_synth_effects PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})

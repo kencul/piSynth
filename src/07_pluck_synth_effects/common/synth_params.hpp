@@ -22,6 +22,9 @@ public:
 		ReverbRoomSize,
 		ReverbCutoff,
 		ReverbMix,
+		DelayTime,
+		DelayFeedback,
+		DelayMix,
 		COUNT
 	};
 

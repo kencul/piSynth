@@ -43,6 +43,12 @@ SynthParams::SynthParams() {
 	                                                  "Hz"};
 	descs[static_cast<int>(ParamId::ReverbMix)]    = {
         0.0f, 1.0f, 0.5f, ParamScale::Linear, "Reverb Mix", ""};
+	descs[static_cast<int>(ParamId::DelayTime)] = {
+	    1.0f, Config::PING_PONG_MAX_DELAY_MS, 500.0f, ParamScale::Power, "Delay Time", "ms"};
+	descs[static_cast<int>(ParamId::DelayFeedback)] = {
+	    0.0f, 0.95f, 0.5f, ParamScale::Linear, "Delay Feedback", ""};
+	descs[static_cast<int>(ParamId::DelayMix)] = {
+	    0.0f, 1.0f, 0.25f, ParamScale::Linear, "Delay Mix", ""};
 
 	// initialize param values to defaults
 	for (int i = 0; i < COUNT; ++i) {
@@ -83,6 +89,9 @@ SynthParams::SynthParams() {
 	    {26, ParamId::ReverbRoomSize},
 	    {27, ParamId::ReverbCutoff},
 	    {28, ParamId::ReverbMix},
+	    {25, ParamId::DelayTime},
+	    {29, ParamId::DelayFeedback},
+	    {1, ParamId::DelayMix},
 	};
 }
 

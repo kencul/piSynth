@@ -3,6 +3,7 @@
 #include "../common/synth_params.hpp"
 #include "chorus.hpp"
 #include "freeverb.hpp"
+#include "ping_pong.hpp"
 #include <span>
 
 class MasterBus {
@@ -17,6 +18,7 @@ private:
 
 	Chorus chorus;
 	Freeverb freeverb;
+	PingPong ping_pong;
 
 	SmoothedValue gain_smoother {20.0f};
 };
