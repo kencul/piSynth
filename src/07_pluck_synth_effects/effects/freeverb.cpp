@@ -1,7 +1,12 @@
 #include "freeverb.hpp"
 #include <algorithm>
 
-void Freeverb::init() {
+void Freeverb::init(float room_size, float damping, float mix) {
+	room_size_smoother.reset(room_size);
+	damping_smoother.reset(damping);
+	mix_smoother.reset(mix);
+
+	float cutoff_freq = map_damping_to_cutoff(damping);
 	for (int i = 0; i < NUM_COMBS; ++i) {
 		combs_l[i].init(COMB_DELAYS_MS[i], cutoff_freq);
 		combs_r[i].init(COMB_DELAYS_MS[i] + RIGHT_CHANNEL_OFFSET_MS, cutoff_freq);
@@ -11,11 +16,20 @@ void Freeverb::init() {
 		allpasses_l[i].init(ALLPASS_DELAYS_MS[i]);
 		allpasses_r[i].init(ALLPASS_DELAYS_MS[i] + RIGHT_CHANNEL_OFFSET_MS);
 	}
-
-	set_room_size(0.9f); // default room size
 }
 
-void Freeverb::process(std::span<float> mix_l, std::span<float> mix_r) {
+void Freeverb::process(
+    std::span<float> mix_l, std::span<float> mix_r, float room_size, float damping, float mix) {
+	room_size_smoother.set_target(room_size);
+	damping_smoother.set_target(damping);
+	mix_smoother.set_target(mix);
+
+	float wet                = mix_smoother.next();
+	float smoothed_damping   = damping_smoother.next();
+	float smoothed_room_size = room_size_smoother.next();
+	set_room_size(smoothed_room_size);
+	update_damping(smoothed_damping);
+
 	for (size_t i = 0; i < mix_l.size(); ++i) {
 		// float input_l = mix_l[i];
 		// float input_r = mix_r[i];
@@ -44,11 +58,23 @@ void Freeverb::process(std::span<float> mix_l, std::span<float> mix_r) {
 
 void Freeverb::set_room_size(float room_size) {
 	float clamped_room_size = std::clamp(room_size, 0.0f, 1.0f);
-	if (clamped_room_size == this->room_size) return;
-	this->room_size = clamped_room_size;
-	float feedback  = std::clamp(0.68f + clamped_room_size * 0.28f, 0.0f, 0.99f);
+
+	float feedback = std::clamp(0.68f + clamped_room_size * 0.28f, 0.0f, 0.99f);
 	for (int i = 0; i < NUM_COMBS; ++i) {
 		combs_l[i].set_gain(feedback);
 		combs_r[i].set_gain(feedback);
 	}
+}
+
+void Freeverb::update_damping(float damping) {
+	float cutoff_freq = map_damping_to_cutoff(damping);
+	for (int i = 0; i < NUM_COMBS; ++i) {
+		combs_l[i].set_cutoff(cutoff_freq);
+		combs_r[i].set_cutoff(cutoff_freq);
+	}
+}
+
+float Freeverb::map_damping_to_cutoff(float damping) {
+	float clamped_damping = std::clamp(damping, 0.0f, 1.0f);
+	return 1000.0f + clamped_damping * 11000.0f; // map to 1kHz - 12kHz
 }

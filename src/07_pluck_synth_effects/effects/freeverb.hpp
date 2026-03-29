@@ -1,15 +1,15 @@
 #pragma once
+#include "../common/smoothed_value.hpp"
 #include "primitives/allpass.hpp"
 #include "primitives/comb.hpp"
 #include <span>
 
 class Freeverb {
 public:
-	void init();
+	void init(float room_size, float damping, float mix);
 	void set_room_size(float room_size);
-	void set_damping(float cutoff_freq) { this->cutoff_freq = cutoff_freq; }
-	void set_wet(float wet) { this->wet = wet; }
-	void process(std::span<float> mix_l, std::span<float> mix_r);
+	void process(
+	    std::span<float> mix_l, std::span<float> mix_r, float room_size, float damping, float mix);
 
 private:
 	static constexpr int NUM_COMBS     = 8;
@@ -22,9 +22,12 @@ private:
 	static constexpr float RIGHT_CHANNEL_OFFSET_MS =
 	    0.5f; // small offset to decorrelate left and right channels
 
+	void update_damping(float damping);
+	float map_damping_to_cutoff(float damping);
+
 	std::array<Comb, NUM_COMBS> combs_l, combs_r;
 	std::array<Allpass, NUM_ALLPASSES> allpasses_l, allpasses_r;
-	float wet {0.3f};
-	float cutoff_freq {12000.0f};
-	float room_size {0.0f};
+	SmoothedValue mix_smoother {20.0f, SmoothedValue::Granularity::PerBlock};
+	SmoothedValue damping_smoother {50.0f, SmoothedValue::Granularity::PerBlock};
+	SmoothedValue room_size_smoother {50.0f, SmoothedValue::Granularity::PerBlock};
 };

@@ -19,6 +19,9 @@ public:
 		ChorusRate,
 		ChorusDepth,
 		ChorusMix,
+		ReverbRoomSize,
+		ReverbDamping,
+		ReverbMix,
 		COUNT
 	};
 
