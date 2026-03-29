@@ -28,19 +28,19 @@ bool AudioEngine::open(const char *device) {
 }
 
 bool AudioEngine::configure_device() {
-	snd_pcm_hw_params_t *params;
-	snd_pcm_hw_params_alloca(&params);
-	snd_pcm_hw_params_any(handle, params);
+	snd_pcm_hw_params_t *hw_params;
+	snd_pcm_hw_params_alloca(&hw_params);
+	snd_pcm_hw_params_any(handle, hw_params);
 
-	snd_pcm_hw_params_set_access(handle, params, SND_PCM_ACCESS_RW_INTERLEAVED);
-	snd_pcm_hw_params_set_format(handle, params, SND_PCM_FORMAT_S16_LE);
-	snd_pcm_hw_params_set_channels(handle, params, channels);
-	snd_pcm_hw_params_set_rate_near(handle, params, &sample_rate, nullptr);
-	snd_pcm_hw_params_set_period_size_near(handle, params, &period_size, nullptr);
-	snd_pcm_hw_params_set_buffer_size_near(handle, params, &buffer_size);
+	snd_pcm_hw_params_set_access(handle, hw_params, SND_PCM_ACCESS_RW_INTERLEAVED);
+	snd_pcm_hw_params_set_format(handle, hw_params, SND_PCM_FORMAT_S16_LE);
+	snd_pcm_hw_params_set_channels(handle, hw_params, channels);
+	snd_pcm_hw_params_set_rate_near(handle, hw_params, &sample_rate, nullptr);
+	snd_pcm_hw_params_set_period_size_near(handle, hw_params, &period_size, nullptr);
+	snd_pcm_hw_params_set_buffer_size_near(handle, hw_params, &buffer_size);
 
 	int err;
-	if ((err = snd_pcm_hw_params(handle, params)) < 0) {
+	if ((err = snd_pcm_hw_params(handle, hw_params)) < 0) {
 		std::cerr << "AudioEngine: failed to apply hw params: " << snd_strerror(err) << "\n";
 		return false;
 	}

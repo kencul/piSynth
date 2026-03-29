@@ -1,7 +1,10 @@
 #include "smoothed_value.hpp"
 #include <cmath>
 
-SmoothedValue::SmoothedValue(float time_ms, Granularity g) : granularity(g) { set_time(time_ms); }
+SmoothedValue::SmoothedValue(float time_ms, Granularity g, float snap_threshold) :
+    granularity(g), snap_threshold(snap_threshold) {
+	set_time(time_ms);
+}
 
 void SmoothedValue::set_time(float time_ms) { filter.set_coefficient(time_to_coeff(time_ms)); }
 
@@ -12,7 +15,17 @@ void SmoothedValue::reset(float value) {
 	filter.reset(value);
 }
 
-float SmoothedValue::next() { return filter.process(target); }
+float SmoothedValue::next() {
+	float current = filter.process(target);
+
+	// snap to target once close enough to prevent infinite asymptotic tail
+	if (std::abs(current - target) < snap_threshold) {
+		filter.reset(target);
+		return target;
+	}
+
+	return current;
+}
 
 float SmoothedValue::time_to_coeff(float time_ms) const {
 	float rate = granularity == Granularity::PerBlock ?

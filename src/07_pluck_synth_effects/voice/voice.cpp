@@ -54,7 +54,7 @@ void Voice::process(std::span<float> mix_l,
 	assert(mix_l.size() == tmp.size());
 	assert(mix_r.size() == tmp.size());
 
-	// scale cutoff to note pitch: octave above C4, halves below
+	// scale cutoff to note pitch
 	float tracking = std::pow(2.0f, (note - 60) / 12.0f * Config::FILTER_KEYTRACK);
 
 	osc.process(tmp);

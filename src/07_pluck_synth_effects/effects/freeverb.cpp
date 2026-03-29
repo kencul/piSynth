@@ -6,6 +6,9 @@ void Freeverb::init(float room_size, float damping, float mix) {
 	damping_smoother.reset(damping);
 	mix_smoother.reset(mix);
 
+	last_room_size = room_size;
+	last_damping   = damping;
+
 	float cutoff_freq = map_damping_to_cutoff(damping);
 	for (int i = 0; i < NUM_COMBS; ++i) {
 		combs_l[i].init(COMB_DELAYS_MS[i], cutoff_freq);
@@ -20,23 +23,30 @@ void Freeverb::init(float room_size, float damping, float mix) {
 
 void Freeverb::process(
     std::span<float> mix_l, std::span<float> mix_r, float room_size, float damping, float mix) {
-	room_size_smoother.set_target(room_size);
-	damping_smoother.set_target(damping);
 	mix_smoother.set_target(mix);
 
-	float wet                = mix_smoother.next();
-	float smoothed_damping   = damping_smoother.next();
+	room_size_smoother.set_target(room_size);
 	float smoothed_room_size = room_size_smoother.next();
-	set_room_size(smoothed_room_size);
-	update_damping(smoothed_damping);
+
+	if (last_room_size != smoothed_room_size) {
+		set_room_size(smoothed_room_size);
+		last_room_size = smoothed_room_size;
+	}
+
+	damping_smoother.set_target(damping);
+	float smoothed_damping = damping_smoother.next();
+	if (last_damping != smoothed_damping) {
+		update_damping(smoothed_damping);
+		last_damping = smoothed_damping;
+	}
 
 	for (size_t i = 0; i < mix_l.size(); ++i) {
-		// float input_l = mix_l[i];
-		// float input_r = mix_r[i];
 		float input_mono = (mix_l[i] + mix_r[i]) * 0.5f;
 
 		float out_l = 0.0f;
 		float out_r = 0.0f;
+
+		float wet = mix_smoother.next();
 
 		for (int j = 0; j < NUM_COMBS; ++j) {
 			out_l += combs_l[j].process(input_mono);
@@ -76,5 +86,5 @@ void Freeverb::update_damping(float damping) {
 
 float Freeverb::map_damping_to_cutoff(float damping) {
 	float clamped_damping = std::clamp(damping, 0.0f, 1.0f);
-	return 1000.0f + clamped_damping * 11000.0f; // map to 1kHz - 12kHz
+	return 200.0f + clamped_damping * 9000.0f; // map to 1kHz - 12kHz
 }

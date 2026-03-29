@@ -2,6 +2,7 @@
 #include "../../config.hpp"
 #include <algorithm>
 #include <cmath>
+#include <numbers>
 
 void OnePole::set_cutoff(float hz) {
 	hz          = std::clamp(hz, 20.0f, Config::SAMPLE_RATE * 0.49f);

@@ -7,7 +7,6 @@
 class Freeverb {
 public:
 	void init(float room_size, float damping, float mix);
-	void set_room_size(float room_size);
 	void process(
 	    std::span<float> mix_l, std::span<float> mix_r, float room_size, float damping, float mix);
 
@@ -22,12 +21,17 @@ private:
 	static constexpr float RIGHT_CHANNEL_OFFSET_MS =
 	    5.0f; // small offset to decorrelate left and right channels
 
+	void set_room_size(float room_size);
 	void update_damping(float damping);
 	float map_damping_to_cutoff(float damping);
 
 	std::array<Comb, NUM_COMBS> combs_l, combs_r;
 	std::array<Allpass, NUM_ALLPASSES> allpasses_l, allpasses_r;
-	SmoothedValue mix_smoother {20.0f, SmoothedValue::Granularity::PerBlock};
-	SmoothedValue damping_smoother {50.0f, SmoothedValue::Granularity::PerBlock};
-	SmoothedValue room_size_smoother {50.0f, SmoothedValue::Granularity::PerBlock};
+
+	float last_room_size = 0.0f;
+	float last_damping   = 0.0f;
+
+	SmoothedValue mix_smoother {20.0f};
+	SmoothedValue damping_smoother {20.0f, SmoothedValue::Granularity::PerBlock};
+	SmoothedValue room_size_smoother {20.0f, SmoothedValue::Granularity::PerBlock};
 };

@@ -6,7 +6,9 @@ class SmoothedValue {
 public:
 	enum class Granularity { PerSample, PerBlock };
 	// time_ms: how long it takes to reach a new target (~63% in one time constant)
-	explicit SmoothedValue(float time_ms = 20.0f, Granularity g = Granularity::PerSample);
+	explicit SmoothedValue(float time_ms        = 20.0f,
+	                       Granularity g        = Granularity::PerSample,
+	                       float snap_threshold = 1e-4f);
 
 	void set_time(float time_ms);
 	void set_target(float target);
@@ -23,4 +25,5 @@ private:
 	OnePole filter;
 	float target            = 0.0f;
 	Granularity granularity = Granularity::PerSample;
+	float snap_threshold    = 1e-4f;
 };
