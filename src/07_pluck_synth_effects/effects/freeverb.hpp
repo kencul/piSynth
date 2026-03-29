@@ -20,7 +20,7 @@ private:
 	static constexpr std::array<float, NUM_ALLPASSES> ALLPASS_DELAYS_MS = {
 	    12.6f, 10.0f, 7.7f, 5.0f};
 	static constexpr float RIGHT_CHANNEL_OFFSET_MS =
-	    0.5f; // small offset to decorrelate left and right channels
+	    5.0f; // small offset to decorrelate left and right channels
 
 	void update_damping(float damping);
 	float map_damping_to_cutoff(float damping);

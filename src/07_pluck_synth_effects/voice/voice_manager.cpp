@@ -45,18 +45,13 @@ void VoiceManager::process(std::span<float> mix_l, std::span<float> mix_r) {
 		resonance_buf[i] = resonance_smoother.next();
 	}
 
-	bool any_active = false;
 	for (auto &v : voices) {
 		if (!v.active) continue;
-		any_active = true;
+
 		v.process(mix_l, mix_r, cutoff_buf, resonance_buf);
-	}
 
-	if (!any_active) return;
+		if (!v.envelope.is_idle()) continue;
 
-	// check idle voices and trigger pending notes or clear and deactivate
-	for (auto &v : voices) {
-		if (!v.active || !v.envelope.is_idle()) continue;
 		if (v.pending.valid) {
 			trigger_note(v, v.pending.note, v.pending.hz, v.pending.velocity);
 		} else {

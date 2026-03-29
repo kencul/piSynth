@@ -23,6 +23,8 @@ public:
 private:
 	float interpolate_delay_line(float read_idx_float);
 	static constexpr int MAX_DELAY = 8192;
+	static_assert((MAX_DELAY & (MAX_DELAY - 1)) == 0,
+	              "MAX_DELAY must be a power of two for bitmask wrapping");
 
 	std::array<float, MAX_DELAY> delay_line = {};
 	int write_pos                           = 0;
