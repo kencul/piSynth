@@ -45,12 +45,12 @@ public:
 	void handle_cc(int cc, int value);
 
 	// called by audio thread
-	float value(ParamId id) const;
+	float get_value(ParamId id) const;
 
 	std::optional<ParamId> cc_to_param(int cc) const;
 
 	// called by UI
-	float get(ParamId id) const;
+	float get_normalized(ParamId id) const;
 	ParamDescriptor descriptor(ParamId id) const;
 
 private:

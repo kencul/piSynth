@@ -390,3 +390,9 @@ The feedback amound and mix level are both 0-1 linear scalings. The mix level an
 Voice manager's logic relies on accessing members of `voice` objects directly. It checks the `active` member variable to check if its available or not, accessing the `envelope` object in `voice` to check the envelope state and so on.
 
 This creates a implicit relationship between the two classes that becomes messy. The solution is to restructure `voice` to create various interface functions that turn long if statement logic in `VoiceManger` into one function call in `voice`. The function in `voice` then handles all the logic, and therefore handles all the interaction with its member variables and objects.
+
+### Sample Rate bug with Smoothed Value
+
+The sample rate is a negotiated value; the ALSA is asked for a sample rate, then ALSA sets the actual sample rate to as close as the requested value as possible. This negotiated value is saved in a mutable global in `config.hpp`, and all but the `SmoothedValue` object handles it.
+
+`SmoothedValue` calculates the coefficient for smoothing based on the time set by the user at init time. This is before the negotiation with ALSA occurs, meaning the requested value is used. If the negotiated value is different, the `SmoothedValue` would have the incorrect coefficient value. To fix this, the coefficient is calculated when `SmoothedValue::reset` is run, which must always be run in the init function. This ensures the coefficient calculation is done with the negotiated sample rate.

@@ -25,7 +25,7 @@ void Freeverb::process(
 	mix_smoother.set_target(mix);
 
 	room_size_smoother.set_target(room_size);
-	float smoothed_room_size = room_size_smoother.next();
+	float smoothed_room_size = room_size_smoother.next_block();
 
 	if (last_room_size != smoothed_room_size) {
 		set_room_size(smoothed_room_size);
@@ -33,7 +33,7 @@ void Freeverb::process(
 	}
 
 	cutoff_smoother.set_target(std::clamp(cutoff_freq, 20.0f, Config::SAMPLE_RATE * 0.49f));
-	float smoothed_cutoff = cutoff_smoother.next();
+	float smoothed_cutoff = cutoff_smoother.next_block();
 	if (last_cutoff_freq != smoothed_cutoff) {
 		update_cutoff(smoothed_cutoff);
 		last_cutoff_freq = smoothed_cutoff;
@@ -45,7 +45,7 @@ void Freeverb::process(
 		float out_l = 0.0f;
 		float out_r = 0.0f;
 
-		float wet = mix_smoother.next();
+		float wet = mix_smoother.next_sample();
 
 		for (int j = 0; j < NUM_COMBS; ++j) {
 			out_l += combs_l[j].process(input_mono);

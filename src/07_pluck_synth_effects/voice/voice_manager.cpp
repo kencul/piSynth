@@ -7,8 +7,8 @@
 
 void VoiceManager::init(int period_size) {
 	for (auto &v : voices) v.init(period_size);
-	cutoff_smoother.reset(params.value(SynthParams::ParamId::FilterCutoff));
-	resonance_smoother.reset(params.value(SynthParams::ParamId::FilterResonance));
+	cutoff_smoother.reset(params.get_value(SynthParams::ParamId::FilterCutoff));
+	resonance_smoother.reset(params.get_value(SynthParams::ParamId::FilterResonance));
 }
 
 void VoiceManager::handle(const NoteEvent &ev) {
@@ -21,7 +21,7 @@ void VoiceManager::handle(const NoteEvent &ev) {
 		}
 		voice_age[idx] = age_counter++;
 	} else {
-		float release_time = params.value(SynthParams::ParamId::ReleaseTime);
+		float release_time = params.get_value(SynthParams::ParamId::ReleaseTime);
 		for (auto &v : voices) {
 			v.try_release(ev.note, release_time);
 			v.cancel_pending(ev.note);
@@ -33,11 +33,11 @@ void VoiceManager::process(std::span<float> mix_l, std::span<float> mix_r) {
 	std::fill(mix_l.begin(), mix_l.end(), 0.0f);
 	std::fill(mix_r.begin(), mix_r.end(), 0.0f);
 
-	cutoff_smoother.set_target(params.value(SynthParams::ParamId::FilterCutoff));
-	resonance_smoother.set_target(params.value(SynthParams::ParamId::FilterResonance));
+	cutoff_smoother.set_target(params.get_value(SynthParams::ParamId::FilterCutoff));
+	resonance_smoother.set_target(params.get_value(SynthParams::ParamId::FilterResonance));
 
-	float cutoff_hz = cutoff_smoother.next();
-	float resonance = resonance_smoother.next();
+	float cutoff_hz = cutoff_smoother.next_block();
+	float resonance = resonance_smoother.next_block();
 
 	for (auto &v : voices) {
 		if (!v.is_active()) continue;
@@ -71,9 +71,9 @@ int VoiceManager::allocate_voice() {
 double VoiceManager::midi_to_hz(int note) { return 440.0 * std::pow(2.0, (note - 69) / 12.0); }
 
 void VoiceManager::trigger_note(Voice &voice, int midi_note, double hz, int velocity) {
-	float attack     = params.value(SynthParams::ParamId::AttackTime);
-	float decay      = params.value(SynthParams::ParamId::DecayTime);
-	float pluck_pos  = params.value(SynthParams::ParamId::PluckPos);
-	float pickup_pos = params.value(SynthParams::ParamId::PickupPos);
+	float attack     = params.get_value(SynthParams::ParamId::AttackTime);
+	float decay      = params.get_value(SynthParams::ParamId::DecayTime);
+	float pluck_pos  = params.get_value(SynthParams::ParamId::PluckPos);
+	float pickup_pos = params.get_value(SynthParams::ParamId::PickupPos);
 	voice.trigger(midi_note, hz, velocity, attack, decay, pluck_pos, pickup_pos);
 }

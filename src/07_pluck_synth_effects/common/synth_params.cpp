@@ -102,7 +102,7 @@ void SynthParams::handle_cc(int cc, int value) {
 	params[static_cast<int>(it->second)].store(value / 127.0f);
 }
 
-float SynthParams::value(ParamId id) const {
+float SynthParams::get_value(ParamId id) const {
 	int idx = static_cast<int>(id);
 	float t = params[idx].load();
 	auto &d = descs[idx];
@@ -127,7 +127,7 @@ float SynthParams::value(ParamId id) const {
 	return d.min;
 }
 
-float SynthParams::get(ParamId id) const { return params[static_cast<int>(id)].load(); }
+float SynthParams::get_normalized(ParamId id) const { return params[static_cast<int>(id)].load(); }
 
 SynthParams::ParamDescriptor SynthParams::descriptor(SynthParams::ParamId id) const {
 	return descs[static_cast<int>(id)];

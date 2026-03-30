@@ -25,10 +25,10 @@ void Chorus::process(
 	lfo_r.set_rate(rate * 0.8f);
 
 	for (int i = 0; i < static_cast<int>(mix_l.size()); ++i) {
-		float current_mix = mix_smoother.next();
+		float current_mix = mix_smoother.next_sample();
 		float dry         = 1.0f - current_mix;
 
-		float depth_ms = depth_smoother.next();
+		float depth_ms = depth_smoother.next_sample();
 
 		float mod_l = ms_to_samples(Config::CHORUS_LEFT_BASE_MS + lfo_l.process() * depth_ms);
 		float mod_r = ms_to_samples(Config::CHORUS_RIGHT_BASE_MS + lfo_r.process() * depth_ms);

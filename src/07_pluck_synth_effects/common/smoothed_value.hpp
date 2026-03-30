@@ -16,14 +16,18 @@ public:
 	// snap immediately with no smoothing: call after init to avoid zipper on first block
 	void reset(float value);
 
-	float next();
+	float next_sample();
+	float next_block();
 
 private:
 	// one pole coefficient from smoothing time: c = e^(-1 / (time_s * sample_rate))
 	float time_to_coeff(float time_ms) const;
 
+	float next();
+
 	OnePole filter;
 	float target            = 0.0f;
+	float time_ms           = 20.0f;
 	Granularity granularity = Granularity::PerSample;
 	float snap_threshold    = 1e-4f;
 };

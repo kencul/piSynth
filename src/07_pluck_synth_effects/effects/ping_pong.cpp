@@ -19,17 +19,17 @@ void PingPong::process(
 	feedback_smoother.set_target(feedback);
 	mix_smoother.set_target(mix);
 
-	float current_feedback = feedback_smoother.next();
+	float current_feedback = feedback_smoother.next_block();
 
 	for (int i = 0; i < static_cast<int>(mix_l.size()); ++i) {
 		float mono_in = (mix_l[i] + mix_r[i]) * 0.5f;
 
-		float current_delay = ms_to_samples(delay_smoother.next());
+		float current_delay = ms_to_samples(delay_smoother.next_sample());
 
 		float delayed_l = delay_l.read(current_delay);
 		float delayed_r = delay_r.read(current_delay);
 
-		float current_mix = mix_smoother.next();
+		float current_mix = mix_smoother.next_sample();
 
 		// apply a one-pole lowpass to the feedback path to prevent harshness
 		delayed_l = filter_l.process(delayed_l);

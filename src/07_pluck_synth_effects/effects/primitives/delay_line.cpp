@@ -14,7 +14,6 @@ void DelayLine::write(float sample) {
 
 float DelayLine::read(float delay_samples) const {
 	assert(delay_samples < static_cast<float>(buffer.size()));
-	delay_samples = std::clamp(delay_samples, 0.0f, static_cast<float>(buffer.size()) - 1.0f);
 
 	int delay_int    = static_cast<int>(delay_samples);
 	float delay_frac = delay_samples - delay_int;

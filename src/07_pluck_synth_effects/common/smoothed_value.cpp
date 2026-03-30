@@ -1,18 +1,31 @@
 #include "smoothed_value.hpp"
+#include <cassert>
 #include <cmath>
 
 SmoothedValue::SmoothedValue(float time_ms, Granularity g, float snap_threshold) :
-    granularity(g), snap_threshold(snap_threshold) {
-	set_time(time_ms);
-}
+    time_ms(time_ms), granularity(g), snap_threshold(snap_threshold) {}
 
-void SmoothedValue::set_time(float time_ms) { filter.set_coefficient(time_to_coeff(time_ms)); }
+void SmoothedValue::set_time(float time_ms) {
+	this->time_ms = time_ms;
+	filter.set_coefficient(time_to_coeff(time_ms));
+}
 
 void SmoothedValue::set_target(float t) { target = t; }
 
 void SmoothedValue::reset(float value) {
+	filter.set_coefficient(time_to_coeff(time_ms));
 	target = value;
 	filter.reset(value);
+}
+
+float SmoothedValue::next_sample() {
+	assert(granularity == Granularity::PerSample);
+	return next();
+}
+
+float SmoothedValue::next_block() {
+	assert(granularity == Granularity::PerBlock);
+	return next();
 }
 
 float SmoothedValue::next() {

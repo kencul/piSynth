@@ -109,7 +109,7 @@ void MidiReader::handle_event(snd_seq_event_t *ev) {
 
 			if (auto id = params.cc_to_param(cc)) {
 				auto d = params.descriptor(*id);
-				std::cout << "CC " << cc << " | " << d.name << " = " << params.value(*id) << " "
+				std::cout << "CC " << cc << " | " << d.name << " = " << params.get_value(*id) << " "
 				          << d.unit << "\n";
 			} else {
 				std::cout << "CC " << cc << " val=" << val << " (unmapped)\n";
