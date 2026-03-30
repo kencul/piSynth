@@ -1,234 +1,150 @@
-# 06 Pluck Synth CC
-
-A polyphonic pluck-string waveguide synthesizer driven by MIDI input with real-time CC parameter control.
+# 07 Pluck Synth Effects
+A polyphonic pluck-string waveguide synthesizer with a per-voice Zero Delay SVF filter and a master effects bus including Chorus, Reverb, and Ping Pong Delay.
 
 ## Usage
-
 Build and run:
 ```bash
 cd build
 cmake ..
 ninja
-./bin/06_pluck_synth_cc
+./bin/07_pluck_synth_effects
 ```
 
-Launching will open the audio device and read MIDI controller based on values in `config.hpp`.
+Launching will open the audio device and read MIDI controller based on values in `config.hpp`. This version supports multiple MIDI devices simultaneously to accommodate more physical controllers.
 
-From there it responds immediately to your keyboard. Press a key and the plucked string sounds at that pitch. Ctrl+C shuts everything down cleanly.
-
-To change the audio device or the MIDI source, edit `config.hpp`:
- 
+To change the audio device or the MIDI sources, edit `config.hpp`:
 ```cpp
 inline constexpr const char *AUDIO_DEVICE = "hw:A";
-inline constexpr const char *MIDI_DEVICE  = "KOMPLETE KONTROL";
+inline constexpr std::initializer_list<const char *> MIDI_DEVICES = {
+    "KOMPLETE KONTROL",
+    "Teensy MIDI"
+};
 ```
- 
-Adjust voices and kill time in `config.hpp`:
- 
+
+Adjust the master effects settings and voice parameters in `config.hpp`:
 ```cpp
 inline constexpr int   MAX_VOICES   = 8;
 inline constexpr float KILL_MS      = 1.5f;     // ms: voice steal fade time
+inline constexpr float FILTER_KEYTRACK = 0.8f;  // 0.0-2.0 cutoff tracking
 ```
- 
-Adjust the parameter ranges in `config.hpp`:
- 
-```cpp
-inline constexpr float MIN_DECAY_MS      = 10.0f;    // ms
-inline constexpr float MAX_DECAY_MS      = 15000.0f; // ms
-inline constexpr float MAX_ATTACK_TIME   = 50.0f;    // ms
-inline constexpr float MAX_RELEASE_TIME  = 1000.0f;  // ms
-inline constexpr float MIN_PICKUP_POS    = 0.05f;
-```
- 
-Adjust the saturation ceiling:
- 
-```cpp
-inline constexpr float SATURATION_DRIVE = 1.0f; // must be >= 1.0
-```
+
+## New Effects & Controls
+Program 07 introduces a restructured processing chain. Each voice now contains its own **Zero Delay State Variable Filter (SVF)**, while global effects are processed on a dedicated **Master Bus**.
+
+### Per-Voice Filter
+* **SVF Filter**: A stable, accurate filter implemented for each voice. It includes **Keytracking**, which scales the cutoff frequency based on the note pitch so that different octaves maintain consistent timbre.
+
+### Master Bus Effects
+* **Chorus**: A stereo effect using dual LFO-modulated delay lines. The left and right channels use different modulation rates and base delay offsets to create maximum stereo width.
+* **Freeverb**: A lush reverb implementation using 8 parallel comb filters followed by 4 serial allpass filters. It provides controls for room size, damping (cutoff), and dry/wet mix.
+* **Ping Pong Delay**: A stereo delay where reflections bounce between the left and right channels. It features per-sample delay time smoothing to create smooth pitch-shifting "Doppler" effects when adjusted.
 
 ## CC Parameter Control
- 
-Parameters are controlled via MIDI CC messages. Each parameter has a default value, a min/max range, and a scaling curve. All mappings and scaling live in `synth_params.cpp`.
- 
-| CC | Parameter    | Range                   | Scale  |
-|----|--------------|-------------------------|--------|
-| 14 | Master Gain  | 0.0 – 1.0               | Exp    |
-| 15 | Decay Time   | 10ms – 15000ms          | Log    |
-| 16 | Pluck Pos    | 0.0 – 1.0               | Linear |
-| 17 | Pickup Pos   | 0.05 – 1.0              | Linear |
-| 18 | Attack Time  | 0.1ms – 50ms            | Log    |
-| 19 | Release Time | 1ms – 1000ms            | Log    |
- 
-Scaling curves map the 0–127 CC range to a normalized 0–1 value before it is mapped to the parameter range:
- 
-- **Linear**: proportional, good for spatial parameters like pluck and pickup position
-- **Log**: compresses the low end, good for time-based parameters where small values need precision
-- **Exp**: expands the low end, good for gain where most useful range is in the lower values
- 
-To add a new parameter, add it to the `ParamId` enum in `synth_params.hpp`, add a descriptor in the `SynthParams` constructor, and add a CC entry in `cc_map` in `synth_params.cpp`.
+Parameters are controlled via MIDI CC messages. Per-sample and per-block **Parameter Smoothing** has been implemented for all CC inputs to eliminate "zipper noise" and clicks during real-time adjustment.
 
-## DAC
- 
-This program targets the **Apple USB-C to 3.5mm Headphone Jack** dongle instead of the UR22 MkII used in the previous version. Several things change as a result:
- 
-**Format: `S32_LE` → `S16_LE`**
+| CC | Parameter        | Range             | Scale | Effect |
+|----|------------------|-------------------|-------|--------|
+| 14 | Master Gain      | 0.0 – 1.0         | Power | Master |
+| 15 | Decay Time       | 10ms – 15000ms    | Log   | Voice  |
+| 16 | Pluck Pos        | 0.0 – 1.0         | Linear| Voice  |
+| 17 | Pickup Pos       | 0.05 – 1.0        | Linear| Voice  |
+| 18 | Attack Time      | 0.1ms – 50ms      | Log   | Voice  |
+| 19 | Release Time     | 1ms – 1000ms      | Log   | Voice  |
+| 20 | Filter Cutoff    | 20Hz – 18000Hz    | Exp   | Filter |
+| 21 | Filter Resonance | 0.0 – 1.0         | Linear| Filter |
+| 22 | Chorus Rate      | 1Hz – 5Hz         | Log   | Chorus |
+| 23 | Chorus Depth     | 0.0 – 2.0         | Linear| Chorus |
+| 24 | Chorus Mix       | 0.0 – 1.0         | Linear| Chorus |
+| 25 | Delay Time       | 1ms – 1000ms      | Power | Delay  |
+| 29 | Delay Feedback   | 0.0 – 0.95        | Linear| Delay  |
+| 1  | Delay Mix        | 0.0 – 1.0         | Linear| Delay  |
+| 26 | Reverb Room Size | 0.0 – 1.0         | Linear| Reverb |
+| 27 | Reverb Cutoff    | 1kHz – 10kHz      | Exp   | Reverb |
+| 28 | Reverb Mix       | 0.0 – 1.0         | Linear| Reverb |
 
-In `configure_device()` in `audio.cpp`:
 
-```cpp
-snd_pcm_hw_params_set_format(handle, params, SND_PCM_FORMAT_S16_LE);
-```
- 
-The dongle does not support `S32_LE`. It offers `S24_3LE` (packed 3-byte) and `S16_LE`. `S16_LE` was chosen as it maps directly to `int16_t` with no manual byte packing required.
- 
-**Sample rate: 44100Hz → 48000Hz**
- 
-The dongle only supports 48000Hz. `Config::SAMPLE_RATE` is updated accordingly.
- 
-**Sample scale**
- 
-The 24-bit-in-32 scale factor is replaced with the 16-bit equivalent:
- 
-```cpp
-// was: (1 << 23 - 1) * (1 << 8) for 24-bit in S32_LE container
-inline constexpr double SAMPLE_SCALE = 32767.0; // INT16_MAX
-```
- 
-**Buffer type**
- 
-The audio buffer changes from `std::vector<int32_t>` to `std::vector<int16_t>` in `audio.cpp`, and `VoiceManager::process()` is updated to write `int16_t` output accordingly.
- 
-**Device name**
- 
-```cpp
-inline constexpr const char *AUDIO_DEVICE = "hw:A";
-```
- 
-The short card ID `A` is used rather than the card number, as card numbers can change between reboots depending on what is plugged in.
 
-## Structure
- 
-### **Startup Sequence**
- 
+## DAC & Audio Configuration
+
+The system continues to target the **Apple USB-C dongle** with the following hardware settings:
+* **Format**: `S16_LE`
+* **Sample Rate**: `48000Hz`
+* **Device Name**: `hw:A`
+* **Scheduling**: Automatically grants `SCHED_FIFO` real-time priority (priority 80) via `setcap` in the build process to ensure low-latency performance.
+
+## Startup Sequence
+
 ```
 main()
 ├── creates RingBuffer<NoteEvent, 64>
-├── creates SynthParams
+├── creates SynthParams (initializes CC mappings and default values)
 ├── creates AudioEngine(event_queue, params)
 │     └── creates VoiceManager(params)
-│           └── creates Voice[8]
-│                 ├── Pluck (Plucked-string model)
-│                 └── ADSR  (release gate only)
+│           ├── creates Voice[8]
+│           │     ├── Pluck (Plucked-string model)
+│           │     ├── SVF   (Zero Delay State Variable Filter)
+│           │     └── ADSR  (Gate-based envelope)
+│           └── creates MasterBus(params)
+│                 ├── Chorus    (Stereo LFO delay)
+│                 ├── Freeverb  (Comb/Allpass reverb)
+│                 └── PingPong  (Cross-feedback delay)
 ├── creates MidiReader(event_queue, params)
-├── audio.open()  → configures ALSA PCM device
-├── midi.open()   → connects to ALSA sequencer
-├── audio.start() → launches audio thread
-└── midi.start()  → launches MIDI thread
+├── audio.open()  → configures ALSA PCM (S16_LE, 48000Hz)
+├── midi.open()   → connects to multiple devices in config.hpp
+├── audio.start() → launches high-priority audio thread
+└── midi.start()  → launches MIDI polling thread
 ```
- 
-### **Realtime Data Flow**
- 
+
+## Realtime Data Flow
+
 ```
-Physical key press or CC message on MIDI controller
+Physical MIDI Event (Keyboard or CC knob)
         ↓
-USB MIDI packet → kernel snd-usb-audio driver
-        ↓
-ALSA sequencer (kernel) → places event in sequencer queue
+USB MIDI packet → kernel ALSA driver
         ↓
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-MIDI THREAD
+MIDI THREAD (MidiReader::midi_loop)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-poll() wakes on sequencer file descriptor
+poll() wakes on sequencer activity
         ↓
-snd_seq_event_input_pending(seq, 1) → fetch from kernel
-        ↓
-snd_seq_event_input() → drain event
+snd_seq_event_input() → drain events
         ↓
 handle_event()
-        ↓
-        ├── NoteOn  → event_queue.push({ NoteOn,  note, velocity })
-        ├── NoteOff → event_queue.push({ NoteOff, note, 0       })
-        └── CC      → params.handle_cc(cc, value)
-                        → look up ParamId in cc_map
-                        → apply_scale(value / 127.0, scale) → 0-1
-                        → params[id].store(normalized)
+        ├── NoteOn/Off → event_queue.push({ type, note, velocity })
+        └── CC Message → params.handle_cc(cc, value)
+                           → normalize 0–127 to 0.0–1.0
+                           → apply scaling (Log/Exp/Linear)
+                           → store in Atomic float array
         ↓
 RingBuffer<NoteEvent, 64>   ← MIDI thread writes here
         ↓                      audio thread reads here
-SynthParams atomics         ← MIDI thread stores here
-        ↓                      audio thread loads here
+SynthParams (Atomics)       ← MIDI thread stores targets
+        ↓                      audio thread loads targets
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-AUDIO THREAD
+AUDIO THREAD (AudioEngine processing)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-snd_pcm_writei() completes previous period
-        ↓
-drain ring buffer:
-while (auto ev = event_queue.pop())
-    voice_manager.handle(ev)
-        │
-        ├── NoteOn
-        │     allocate_voice()
-        │       → free voice first
-        │       → releasing voice second
-        │       → steal oldest third
-        │     if voice is active:
-        │       voice.steal(note, hz, velocity)
-        │         → pending = { note, hz, velocity }
-        │         → envelope.kill() → Stage::Kill
-        │     else:
-        │       voice.trigger(note, hz, velocity)
-        │         → amplitude = velocity/127 / sqrt(MAX_VOICES)
-        │         → osc.set_frequency(hz)
-        │         → osc.set_decay(60000 / params.DecayTime)
-        │         → osc.trigger(params.PluckPos, params.PickupPos, amplitude)
-        │             → seeds delay line with triangle at amplitude
-        │         → envelope.set_attack(params.AttackTime)
-        │         → envelope.trigger() → Stage::Attack
-        │
-        └── NoteOff
-              voice.release()
-                → envelope.set_release(params.ReleaseTime)
-                → envelope.release() → Stage::Release
-                → active stays true until envelope idles
-        ↓
-voice_manager.process(buf, frames, channels)
-        │
-        │  float mix_l[PERIOD_SIZE] = {}
-        │  float mix_r[PERIOD_SIZE] = {}
-        │
-        │  for each active voice:
-        │    osc.process(tmp, frames)
-        │      → reads delay line at pickup position (interpolated)
-        │      → feedback: (sample + prev) * feedback_gain written back
-        │      → natural decay built into the feedback gain
-        │    for each frame:
-        │      envelope_gain = envelope.process()
-        │        → Attack: level += attack_rate
-        │        → Sustain: level = 1.0 (holds until release)
-        │        → Release: level -= release_rate
-        │        → Kill:    level -= kill_rate
-        │        → Idle:    level = 0.0
-        │      mix_l[i] += tmp[i] * envelope_gain * pan_left
-        │      mix_r[i] += tmp[i] * envelope_gain * pan_right
-        │
-        │  for idle voices:
-        │    if pending note exists → trigger it
-        │    else → osc.clear(), voice.active = false
-        │
-        │  for each frame:
-        │    tanh(mix[i] * SATURATION_DRIVE) / SATURATION_DRIVE
-        │    multiply by params.MasterGain
-        │    clamp to [-1.0, 1.0]
-        │    scale to 16-bit value (INT16_MAX = 32767)
-        │    write to buf[i * channels + ch] for each channel
-        ↓
-snd_pcm_writei(handle, buf, period_size)
-        ↓
-ALSA PCM driver (kernel) → ring buffer → hardware DMA
-        ↓
-Apple USB-C to 3.5mm DAC
-        ↓
-Audio output
+1. DRAIN MIDI QUEUE
+   while (event_queue.pop()) → voice_manager.handle(event)
+     → updates voice states (Trigger/Release/Steal)
+
+2. PROCESS VOICES (VoiceManager::process)
+   for each active voice:
+     a. Load param targets (Cutoff, Resonance, etc.)
+     b. osc.process() → Generate plucked string sample
+     c. filter.process() → Apply per-voice SVF Filter
+     d. adsr.process() → Calculate envelope gain
+     e. Accumulate into mix_l and mix_r buffers
+
+3. PROCESS MASTER EFFECTS (MasterBus::process)
+   a. Chorus    → Apply dual-LFO modulated delay
+   b. PingPong  → Apply cross-stereo delay with smoothing
+   c. Freeverb  → Apply Schroeder/Moorer reverb
+   d. Smoothed Gain → Apply master volume with sample-accurate ramp
+
+4. FINAL OUTPUT
+   a. Soft Clip → tanh(mix * DRIVE) / DRIVE (Bus limiting)
+   b. Scale     → Convert float to S16_LE (INT16_MAX)
+   c. ALSA      → snd_pcm_writei() to hardware DMA
 ```
 
 ## Code Breakdown

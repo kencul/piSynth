@@ -34,7 +34,7 @@ private:
 	float half_delay_len = 0.0f;
 
 	// Normalized position (0.0=nut, 1.0=bridge) where output is "picked up".
-	float pickup_pos_norm;
+	float pickup_pos_norm = 0.1f;
 
 	float prev          = 0.0f;
 	float feedback_gain = 0.4995f;

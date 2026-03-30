@@ -17,8 +17,8 @@ private:
 	SynthParams &params;
 
 	Chorus chorus;
-	Freeverb freeverb;
 	PingPong ping_pong;
+	Freeverb freeverb;
 
 	SmoothedValue gain_smoother {20.0f};
 };

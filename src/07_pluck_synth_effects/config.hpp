@@ -65,12 +65,14 @@ inline constexpr float CHORUS_MAX_DEPTH_MULT = 2.0f;
 // derived: largest possible read position across all param combinations
 inline constexpr float CHORUS_MAX_DELAY_MS = CHORUS_LEFT_BASE_MS
     + (CHORUS_DEPTH_COUPLING / CHORUS_MIN_RATE_HZ) * CHORUS_MAX_DEPTH_MULT + 1.0f;
-
-// Reverb
-inline constexpr float REVERB_MIN_CUTOFF_HZ = 1000.0f;
-inline constexpr float REVERB_MAX_CUTOFF_HZ = 10000.0f;
+inline constexpr float CHORUS_LFO_RATE_MULT_OFFSET =
+    0.2f; // make left and right LFO rates different to create a wider stereo effect
 
 // Ping Pong Delay
 inline constexpr float PING_PONG_MAX_DELAY_MS       = 1000.0f;
 inline constexpr float PING_PONG_FEEDBACK_CUTOFF_HZ = 6000.0f;
+
+// Reverb
+inline constexpr float REVERB_MIN_CUTOFF_HZ = 1000.0f;
+inline constexpr float REVERB_MAX_CUTOFF_HZ = 10000.0f;
 } // namespace Config

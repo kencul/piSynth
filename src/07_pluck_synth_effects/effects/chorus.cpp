@@ -21,8 +21,8 @@ void Chorus::process(
 	float target_depth_ms = (Config::CHORUS_DEPTH_COUPLING / rate) * depth;
 	depth_smoother.set_target(target_depth_ms);
 
-	lfo_l.set_rate(rate * 1.2f);
-	lfo_r.set_rate(rate * 0.8f);
+	lfo_l.set_rate(rate * (1.0f + Config::CHORUS_LFO_RATE_MULT_OFFSET));
+	lfo_r.set_rate(rate * (1.0f - Config::CHORUS_LFO_RATE_MULT_OFFSET));
 
 	for (int i = 0; i < static_cast<int>(mix_l.size()); ++i) {
 		float current_mix = mix_smoother.next_sample();
