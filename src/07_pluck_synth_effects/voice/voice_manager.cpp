@@ -14,18 +14,17 @@ void VoiceManager::init(int period_size) {
 void VoiceManager::handle(const NoteEvent &ev) {
 	if (ev.type == NoteEvent::Type::NoteOn) {
 		int idx = allocate_voice();
-		if (voices[idx].active) {
+		if (voices[idx].is_active()) {
 			voices[idx].steal(ev.note, midi_to_hz(ev.note), ev.velocity);
 		} else {
 			trigger_note(voices[idx], ev.note, midi_to_hz(ev.note), ev.velocity);
 		}
 		voice_age[idx] = age_counter++;
 	} else {
-		for (int i = 0; i < Config::MAX_VOICES; ++i) {
-			if (voices[i].active && voices[i].note == ev.note)
-				voices[i].release(params.value(SynthParams::ParamId::ReleaseTime));
-			if (voices[i].pending.valid && voices[i].pending.note == ev.note)
-				voices[i].pending.valid = false;
+		float release_time = params.value(SynthParams::ParamId::ReleaseTime);
+		for (auto &v : voices) {
+			v.try_release(ev.note, release_time);
+			v.cancel_pending(ev.note);
 		}
 	}
 }
@@ -41,26 +40,22 @@ void VoiceManager::process(std::span<float> mix_l, std::span<float> mix_r) {
 	float resonance = resonance_smoother.next();
 
 	for (auto &v : voices) {
-		if (!v.active) continue;
+		if (!v.is_active()) continue;
 
 		v.process(mix_l, mix_r, cutoff_hz, resonance);
 
-		if (!v.envelope.is_idle()) continue;
+		if (!v.is_idle()) continue;
 
-		if (v.pending.valid) {
-			trigger_note(v, v.pending.note, v.pending.hz, v.pending.velocity);
-		} else {
-			v.active = false;
-		}
+		if (auto p = v.consume_pending()) { trigger_note(v, p->note, p->hz, p->velocity); }
 	}
 }
 
 int VoiceManager::allocate_voice() {
 	for (int i = 0; i < Config::MAX_VOICES; ++i)
-		if (!voices[i].active) return i;
+		if (voices[i].is_free()) return i;
 
 	for (int i = 0; i < Config::MAX_VOICES; ++i)
-		if (voices[i].active && voices[i].envelope.is_releasing()) return i;
+		if (voices[i].is_releasing()) return i;
 
 	int oldest_idx = 0;
 	int oldest_age = voice_age[0];

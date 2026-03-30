@@ -34,11 +34,11 @@ void Voice::trigger(int midi_note,
 	osc.trigger(pluck_pos, pickup_pos, amplitude);
 	filter.reset();
 	envelope.trigger();
-	pending.valid = false;
+	pending.reset();
 }
 
 void Voice::steal(int midi_note, double hz, int velocity) {
-	pending = {midi_note, hz, velocity, true};
+	pending = PendingNote {midi_note, hz, velocity};
 	envelope.kill();
 }
 
@@ -66,4 +66,30 @@ void Voice::process(std::span<float> mix_l,
 		mix_l[i] += s * pan_left;
 		mix_r[i] += s * pan_right;
 	}
+}
+
+bool Voice::is_free() const { return !active; }
+bool Voice::is_releasing() const { return active && envelope.is_releasing(); }
+bool Voice::is_active() const { return active; }
+bool Voice::is_idle() const { return envelope.is_idle(); }
+
+bool Voice::try_release(int midi_note, float release_time) {
+	if (!active || note != midi_note || envelope.is_killing()) return false;
+	release(release_time);
+	return true;
+}
+
+void Voice::cancel_pending(int midi_note) {
+	if (pending && pending->note == midi_note) pending.reset();
+}
+
+std::optional<Voice::PendingNote> Voice::consume_pending() {
+	if (pending) {
+		auto p = pending;
+		pending.reset();
+		return p;
+	}
+
+	active = false;
+	return std::nullopt;
 }

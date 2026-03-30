@@ -340,7 +340,7 @@ However, the chorus still has clicking and zipper noise even when smoothing dept
 
 Per sample smoothing is applied to the gain in `MasterBus`, as well as to the filter cutoff and resonance.
 
-Applying smoothing to filter cutoff and resonance was slightly complicated. As the cutoff value is passed to each voice, which processes the entire period, each voice needs to be able to get the smoothed values for each sample. However, all 8 voices use the same smoothed value, so having a `SmoothedValue` object for each voice is wasteful. The solution used here is to have once `SmoothedValue` in `VoiceManager`. Every period, `VoiceManager` calculates the cutoff and resonance values for the entire period, and passes the span of cutoff and resonance values to the voice. This way, all voices can reuse the same values, while maintaining per sample smoothing.
+Applying smoothing to filter cutoff and resonance was slightly complicated. As the cutoff value is passed to each voice, which processes the entire period, each voice needs to be able to get the smoothed values for each sample. However, all 8 voices use the same smoothed value, so having a `SmoothedValue` object for each voice is wasteful. However, changing the cutoff of the filter requires a call to `tan()`, a costly operation. To avoid this, I changed the cutoff to be consistent across a period, meaning ther are 8 `tan()` calls per period (one per voice), instead of a `tan()` per voice per sample, or 256 calls per period. Testing this change made no noticable difference in filter sweeps, so I kept this change.
 
 
 ### Comb Filter
@@ -375,11 +375,6 @@ Room size and mix level are both linearly scaled from 0 to 1. The big difference
 
 Cutoff freq is scaled from `Config::REVERB_MIN_CUTOFF_HZ` to `Config::REVERB_MAX_CUTOFF_HZ`, set in `config.hpp`. The paramter has exponential scaling between these values, and the parameter shows the cutoff as Hz values. This paramter has per block smoothing in the reverb effect itself.
 
-### SVF Optimization
-
-One small optimization I made for the SVF, was changing it to have per sample smoothing. Changing the cutoff of the filter requires a call to `tan()`, a costly operation. To avoid this, I changed the cutoff to be consistent across a period, meaning ther are 8 `tan()` calls per period (one per voice), instead of a `tan()` per voice per sample, or 256 calls per period. Testing this change made no noticable difference in filter sweeps, so I kept this change.
-
-
 ### Ping Pong Delay
 
 With the primitives that I've made so far, making a ping pong delay effect is pretty easy. It consists of 2 delay lines, one for each channel, piping into each other in turn. The feedback is treated with a one-pole LPF.
@@ -389,3 +384,9 @@ In `config.hpp`, `PING_PONG_MAX_DELAY_MS` has to be set, as the delay lines need
 The exposed parameters are for this effect is the delay time, feedback amount, and mix level. The delay time goes from 1ms to 1000ms with power scaling, as values around 100ms are more musical in this context. In the context with beat matching, longer delay times are musically viable, so more emphasis would be put on the higher ranges, but can be mostly be left alone in this case.
 
 The feedback amound and mix level are both 0-1 linear scalings. The mix level and delay time are both per sample smoothing. Mix level for the same reason as the reverb and chorus, and delay time to make the dopper effect when changing the delay time during delay tails have less artifacts.
+
+### Restructuring interaction between voice and voice manager
+
+Voice manager's logic relies on accessing members of `voice` objects directly. It checks the `active` member variable to check if its available or not, accessing the `envelope` object in `voice` to check the envelope state and so on.
+
+This creates a implicit relationship between the two classes that becomes messy. The solution is to restructure `voice` to create various interface functions that turn long if statement logic in `VoiceManger` into one function call in `voice`. The function in `voice` then handles all the logic, and therefore handles all the interaction with its member variables and objects.

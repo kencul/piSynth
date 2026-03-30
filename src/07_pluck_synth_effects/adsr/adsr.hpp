@@ -14,6 +14,7 @@ public:
 	float process();
 	bool is_idle() const;
 	bool is_releasing() const;
+	bool is_killing() const;
 
 private:
 	enum class Stage { Idle, Attack, Sustain, Release, Kill };
