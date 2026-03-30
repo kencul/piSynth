@@ -1,5 +1,4 @@
 #pragma once
-#include "../adsr/adsr.hpp"
 #include "../common/smoothed_value.hpp"
 #include "../common/synth_params.hpp"
 #include "../config.hpp"
