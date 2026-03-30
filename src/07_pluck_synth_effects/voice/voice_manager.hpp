@@ -6,7 +6,6 @@
 #include "voice.hpp"
 #include <array>
 #include <cmath>
-#include <vector>
 
 class VoiceManager {
 public:
