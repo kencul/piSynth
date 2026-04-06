@@ -53,6 +53,9 @@ public:
 	float get_normalized(ParamId id) const;
 	ParamDescriptor descriptor(ParamId id) const;
 
+	// called by the web thread to apply an inbound slider change
+	void set_param(ParamId id, float normalized);
+
 private:
 	static constexpr int COUNT = static_cast<int>(ParamId::COUNT);
 

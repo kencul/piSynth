@@ -12,9 +12,9 @@ SynthParams::SynthParams() {
 	descs[static_cast<int>(ParamId::DecayTime)] = {
 	    Config::MIN_DECAY_MS, Config::MAX_DECAY_MS, 6000.0f, ParamScale::Log, "Decay", "ms"};
 	descs[static_cast<int>(ParamId::PluckPos)] = {
-	    0.0f, 1.0f, 0.2f, ParamScale::Linear, "Pluck Pos", ""};
+	    0.0f, 0.5f, 0.2f, ParamScale::Linear, "Pluck Pos", ""};
 	descs[static_cast<int>(ParamId::PickupPos)] = {
-	    Config::MIN_PICKUP_POS, 1.0f, 0.2f, ParamScale::Linear, "Pickup Pos", ""};
+	    Config::MIN_PICKUP_POS, 0.5f, 0.2f, ParamScale::Linear, "Pickup Pos", ""};
 	descs[static_cast<int>(ParamId::AttackTime)] = {
 	    0.1f, Config::MAX_ATTACK_TIME, 0.1f, ParamScale::Log, "Attack", "ms"};
 	descs[static_cast<int>(ParamId::ReleaseTime)] = {
@@ -44,7 +44,7 @@ SynthParams::SynthParams() {
 	descs[static_cast<int>(ParamId::ReverbMix)]    = {
         0.0f, 1.0f, 0.5f, ParamScale::Linear, "Reverb Mix", ""};
 	descs[static_cast<int>(ParamId::DelayTime)] = {
-	    1.0f, Config::PING_PONG_MAX_DELAY_MS, 500.0f, ParamScale::Power, "Delay Time", "ms"};
+	    1.0f, Config::PING_PONG_MAX_DELAY_MS, 100.0f, ParamScale::Power, "Delay Time", "ms"};
 	descs[static_cast<int>(ParamId::DelayFeedback)] = {
 	    0.0f, 0.95f, 0.5f, ParamScale::Linear, "Delay Feedback", ""};
 	descs[static_cast<int>(ParamId::DelayMix)] = {
@@ -137,4 +137,8 @@ std::optional<SynthParams::ParamId> SynthParams::cc_to_param(int cc) const {
 	auto it = cc_map.find(cc);
 	if (it == cc_map.end()) return std::nullopt;
 	return it->second;
+}
+
+void SynthParams::set_param(ParamId id, float normalized) {
+	params[static_cast<int>(id)].store(std::clamp(normalized, 0.0f, 1.0f));
 }

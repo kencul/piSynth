@@ -4,6 +4,7 @@
 #include "../voice/ring_buffer.hpp"
 #include <alsa/asoundlib.h>
 #include <atomic>
+#include <functional>
 #include <thread>
 #include <unordered_map>
 
@@ -15,6 +16,10 @@ public:
 	bool open(std::initializer_list<const char *> device_names);
 	void start();
 	void stop();
+
+	std::function<void(
+	    SynthParams::ParamId, float normalized, float value, const char *name, const char *unit)>
+	    on_param_change;
 
 private:
 	void midi_loop();

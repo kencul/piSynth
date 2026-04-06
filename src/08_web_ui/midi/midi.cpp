@@ -111,6 +111,9 @@ void MidiReader::handle_event(snd_seq_event_t *ev) {
 				auto d = params.descriptor(*id);
 				std::cout << "CC " << cc << " | " << d.name << " = " << params.get_value(*id) << " "
 				          << d.unit << "\n";
+				if (on_param_change)
+					on_param_change(
+					    *id, params.get_normalized(*id), params.get_value(*id), d.name, d.unit);
 			} else {
 				std::cout << "CC " << cc << " val=" << val << " (unmapped)\n";
 			}

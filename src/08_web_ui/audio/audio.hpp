@@ -7,6 +7,7 @@
 #include "../voice/voice_manager.hpp"
 #include <alsa/asoundlib.h>
 #include <atomic>
+#include <functional>
 #include <thread>
 
 class AudioEngine {
@@ -17,6 +18,8 @@ public:
 	bool open(const char *device);
 	void start();
 	void stop();
+
+	std::function<void(float rms_l, float rms_r, float peak_l, float peak_r)> on_meter;
 
 private:
 	void audio_loop();
@@ -39,4 +42,7 @@ private:
 	std::vector<float> mix_l;
 	std::vector<float> mix_r;
 	std::vector<int16_t> buf;
+
+	int meter_frame    = 0;
+	int meter_interval = 25;
 };

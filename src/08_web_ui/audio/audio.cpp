@@ -47,6 +47,9 @@ bool AudioEngine::configure_device() {
 
 	Config::SAMPLE_RATE = sample_rate;
 
+	meter_interval = static_cast<int>(sample_rate / period_size / 30);
+	if (meter_interval < 1) meter_interval = 1;
+
 	std::cout << "AudioEngine: rate=" << sample_rate << " period=" << period_size
 	          << " buffer=" << buffer_size << "\n";
 	return true;
@@ -90,6 +93,21 @@ void AudioEngine::audio_loop() {
 
 		voice_manager.process(mix_l, mix_r);
 		master_bus.process(mix_l, mix_r);
+
+		if (on_meter) {
+			float rms_l = 0, rms_r = 0, peak_l = 0, peak_r = 0;
+			for (size_t i = 0; i < period_size; ++i) {
+				rms_l += mix_l[i] * mix_l[i];
+				rms_r += mix_r[i] * mix_r[i];
+				peak_l = std::max(peak_l, std::abs(mix_l[i]));
+				peak_r = std::max(peak_r, std::abs(mix_r[i]));
+			}
+			if (++meter_frame >= meter_interval) {
+				meter_frame = 0;
+				on_meter(
+				    std::sqrt(rms_l / period_size), std::sqrt(rms_r / period_size), peak_l, peak_r);
+			}
+		}
 
 		for (int i = 0; i < static_cast<int>(period_size); ++i) {
 			buf[i * channels + 0] =
