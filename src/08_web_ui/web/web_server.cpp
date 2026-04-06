@@ -1,4 +1,3 @@
-// web/web_server.cpp
 #include "web_server.hpp"
 #include <iostream>
 
@@ -17,6 +16,9 @@ void WebServer::stop() {
 				us_listen_socket_close(0, listen_socket);
 				listen_socket = nullptr;
 			}
+
+			auto clients_copy = clients;
+			for (auto *ws : clients_copy) { ws->close(); }
 		});
 	}
 
@@ -26,9 +28,15 @@ void WebServer::stop() {
 void WebServer::broadcast(std::string message) {
 	if (!loop) return;
 
-	// defer the send onto the uWS thread — the string is moved into the lambda
 	loop->defer([this, msg = std::move(message)] {
-		for (auto *ws : clients) ws->send(msg, uWS::OpCode::TEXT);
+		for (auto *ws : clients) {
+			// BACKPRESSURE: Only send if the client's buffer is < 1MB
+			if (ws->getBufferedAmount() < 1024 * 1024) {
+				ws->send(msg, uWS::OpCode::TEXT);
+			} else {
+				std::cerr << "Dropping frame for slow client\n";
+			}
+		}
 	});
 }
 
@@ -39,8 +47,9 @@ void WebServer::run(int port) {
 	uWS::App()
 	    .get("/",
 	         [](auto *res, auto * /*req*/) {
-		         res->writeHeader("Content-Type", "text/html");
-		         res->end(R"html(
+		         res->cork([res]() {
+			         res->writeHeader("Content-Type", "text/html");
+			         res->end(R"html(
                 <!DOCTYPE html>
                 <html>
                 <head><title>Synth</title></head>
@@ -70,10 +79,14 @@ void WebServer::run(int port) {
                 </body>
                 </html>
             )html");
+		         });
 	         })
 	    .ws<PerSocketData>(
 	        "/ws",
-	        {.open =
+	        {.compression      = uWS::DISABLED,
+	         .maxPayloadLength = 16 * 1024,
+	         .idleTimeout      = 30, // Heartbeat: close dead connections after 30s
+	         .open =
 	             [this](auto *ws) {
 		             clients.insert(ws);
 		             ws->send("hello from synth", uWS::OpCode::TEXT);
@@ -84,6 +97,10 @@ void WebServer::run(int port) {
 		             std::cout << "WebServer: received: " << msg << "\n";
 		             // echo back
 		             ws->send(msg, uWS::OpCode::TEXT);
+	             },
+	         .drain =
+	             [](auto *ws) {
+		             std::cout << "Client buffer drained: " << ws->getBufferedAmount() << "\n";
 	             },
 	         .close =
 	             [this](auto *ws, int /*code*/, std::string_view /*reason*/) {

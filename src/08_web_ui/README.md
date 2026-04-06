@@ -198,13 +198,5 @@ target_include_directories(08_web_ui PRIVATE
 target_link_libraries(08_web_ui PRIVATE
     ...
     uSockets
-    z
 )
-```
-
-The library uses zlib to compress messages, so zlib library must be available in the system:
-
-```bash
-sudo apt-get update
-sudo apt-get install zlib1g-dev
 ```

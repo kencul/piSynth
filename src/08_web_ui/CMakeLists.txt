@@ -14,7 +14,10 @@ add_library(uSockets STATIC ${USOCKETS_SOURCES})
 target_include_directories(uSockets PUBLIC
     ${CMAKE_SOURCE_DIR}/deps/uWebSockets/uSockets/src
 )
-target_compile_definitions(uSockets PUBLIC LIBUS_NO_SSL=1)
+target_compile_definitions(uSockets PUBLIC 
+    LIBUS_NO_SSL=1 
+    UWS_NO_ZLIB=1
+)
 
 add_executable(08_web_ui
     main.cpp
@@ -48,7 +51,6 @@ target_link_libraries(08_web_ui PRIVATE
     ALSA::ALSA
     atomic
     uSockets
-    z
 )
 
 add_custom_command(TARGET 08_web_ui POST_BUILD
