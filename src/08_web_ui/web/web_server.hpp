@@ -8,6 +8,7 @@
 #include <thread>
 #include <unordered_set>
 
+
 struct PerSocketData {};
 using WS = uWS::WebSocket<false, true, PerSocketData>;
 
@@ -33,6 +34,7 @@ private:
 
 	SynthParams &params;
 	MsgDispatcher &dispatcher;
+	std::string html;
 
 	std::thread thread;
 	std::atomic<bool> running {false};

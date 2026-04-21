@@ -200,3 +200,31 @@ target_link_libraries(08_web_ui PRIVATE
     uSockets
 )
 ```
+
+## Web Server Structure
+
+This web server system is structured as a high-performance **Embedded Linux Appliance**, designed to provide real-time control and visualization for a synthesizer without compromising the timing of the audio engine. The architecture relies on strict thread isolation, using the `uWebSockets` library to manage network communication on a dedicated low-priority thread while high-priority audio processing continues uninterrupted.
+
+### System Architecture
+The system operates across three primary threads to ensure stability:
+* **Audio Thread:** Executes high-priority DSP tasks and provides telemetry data (like RMS levels) via callbacks.
+* **MIDI Thread:** Monitors hardware input and broadcasts parameter changes when physical knobs are turned.
+* **Web Server Thread:** Runs a `uWebSockets` event loop that serves the HTML interface, manages WebSocket connections, and handles JSON serialization/deserialization.
+
+
+
+### Outbound Data Flow (Synth → Browser)
+Telemetry and state updates are pushed to the browser using a "Typed Message" pattern to maintain thread safety:
+1.  **Trigger:** An event (e.g., a new audio meter reading) occurs in a high-priority thread.
+2.  **Encapsulation:** The data is packed into a lightweight struct (e.g., `MeterMsg` or `ParamMsg`).
+3.  **Deferral:** The struct is moved into a lambda and passed to the web thread via `loop->defer`.
+4.  **Serialization:** On the web thread, the message is converted to JSON using `JsonMsg`, which uses `std::to_chars` to avoid expensive heap allocations.
+5.  **Broadcast:** The server sends the JSON string to all connected clients, checking `ws->getBufferedAmount()` to drop frames for slow clients and prevent memory bloat.
+
+### Inbound Data Flow (Browser → Synth)
+Control messages from the UI are processed using an optimized dispatching system:
+1.  **Client Input:** The browser's JavaScript sends a JSON string (e.g., a `set_param` command) through the WebSocket.
+2.  **Dispatching:** The `MsgDispatcher` extracts the "type" field by expecting it to be the first key in the JSON, then routes the raw string to the appropriate handler.
+3.  **Parsing:** The handler uses `MsgParser` to extract specific integer or float values (like parameter IDs and slider values) without a full JSON library parse.
+4.  **Application:** The values are applied to the `SynthParams`.
+5.  **Synchronization:** The updated parameter is broadcast back to all clients so that multiple open UI instances stay in sync.

@@ -1,67 +1,23 @@
 #include "web_server.hpp"
+#include <fstream>
 #include <iostream>
+#include <sstream>
 
-static constexpr const char *HTML = R"html(
-<!DOCTYPE html>
-<html>
-<head>
-<title>Synth</title>
-<style>
-  body { font-family: monospace; background: #111; color: #ccc; padding: 20px; margin: 0; }
-  #status { margin-bottom: 16px; color: #888; }
-  .param { display: flex; align-items: center; gap: 8px; margin: 3px 0; }
-  .param label { width: 160px; font-size: 12px; }
-  .param input  { flex: 1; }
-  .param .val   { width: 90px; text-align: right; font-size: 12px; }
-</style>
-</head>
-<body>
-<div id="status">Connecting...</div>
-<div id="params"></div>
-<script>
-  const ws = new WebSocket(`ws://${location.host}/ws`);
-  const status    = document.getElementById('status');
-  const paramsDiv = document.getElementById('params');
-  const sliders   = {};
-
-  ws.onopen  = () => (status.textContent = 'Connected');
-  ws.onclose = () => (status.textContent = 'Disconnected');
-
-  ws.onmessage = ({ data }) => {
-    const msg = JSON.parse(data);
-
-    if (msg.type === 'param') {
-      if (sliders[msg.id]) {
-        sliders[msg.id].slider.value       = msg.normalized;
-        sliders[msg.id].val.textContent    = `${msg.value.toFixed(2)} ${msg.unit}`;
-      } else {
-        const row = document.createElement('div');
-        row.className = 'param';
-        row.innerHTML =
-          `<label>${msg.name}</label>` +
-          `<input type="range" min="0" max="1" step="0.001" value="${msg.normalized}">` +
-          `<span class="val">${msg.value.toFixed(2)} ${msg.unit}</span>`;
-
-        const slider = row.querySelector('input');
-        const val    = row.querySelector('.val');
-        sliders[msg.id] = { slider, val };
-
-        // type must be first key -- required by MsgDispatcher::extract_type
-        slider.addEventListener('input', () =>
-          ws.send(JSON.stringify({ type: 'set_param', id: msg.id, value: +slider.value }))
-        );
-
-        paramsDiv.appendChild(row);
-      }
-    }
-  };
-</script>
-</body>
-</html>
-)html";
+static std::string load_html(const std::string &path) {
+	std::ifstream f(path);
+	if (!f) {
+		std::cerr << "WebServer: failed to open " << path << "\n";
+		return "<html><body>index.html not found</body></html>";
+	}
+	std::ostringstream ss;
+	ss << f.rdbuf();
+	return ss.str();
+}
 
 WebServer::WebServer(SynthParams &params, MsgDispatcher &dispatcher) :
-    params(params), dispatcher(dispatcher) {}
+    params(params), dispatcher(dispatcher) {
+	html = load_html(HTML_PATH);
+}
 
 void WebServer::start(int port) {
 	running.store(true);
@@ -73,7 +29,10 @@ void WebServer::stop() {
 
 	if (loop) {
 		loop->defer([this] {
-			for (auto *ws : clients) ws->close();
+			auto clients_copy = clients;
+
+			for (auto *ws : clients_copy) { ws->close(); }
+
 			if (listen_socket) {
 				us_listen_socket_close(0, listen_socket);
 				listen_socket = nullptr;
@@ -107,10 +66,10 @@ void WebServer::run(int port) {
 
 	uWS::App()
 	    .get("/",
-	         [](auto *res, auto *) {
-		         res->cork([res] {
+	         [this](auto *res, auto *) {
+		         res->cork([this, res] {
 			         res->writeHeader("Content-Type", "text/html");
-			         res->end(HTML);
+			         res->end(html);
 		         });
 	         })
 	    .ws<PerSocketData>("/ws",

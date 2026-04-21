@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pluck Synth</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Courier New', monospace;
+  background: #111;
+  color: #aaa;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  padding: 10px 16px;
+  border-bottom: 1px solid #1c1c1c;
+  background: #0d0d0d;
+  flex-shrink: 0;
+}
+
+header h1 {
+  font-size: 16px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: #555;
+  font-weight: normal;
+}
+
+#status {
+  margin-left: auto;
+  font-size: 14px;
+}
+#status.connecting   { color: #444; }
+#status.connected    { color: #33aa55; }
+#status.disconnected { color: #883333; }
+
+main {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ── Meter ──────────────────────────────────────────────────────────── */
+
+#meter-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 14px 10px 10px;
+  border-right: 1px solid #1c1c1c;
+  background: #0d0d0d;
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+#meter-title {
+  font-size: 13px;
+  letter-spacing: 2px;
+  color: #333;
+  text-transform: uppercase;
+}
+
+/* ── Params ─────────────────────────────────────────────────────────── */
+
+#params-panel {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+#params {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px 12px;
+  align-content: start;
+}
+
+.knob {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: ns-resize;
+  user-select: none;
+}
+
+.knob canvas {
+  display: block;
+}
+
+.knob .knob-label {
+  font-size: 11px;
+  color: #666;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 88px;
+}
+
+.knob .knob-val {
+  font-size: 11px;
+  color: #336699;
+  text-align: center;
+  white-space: nowrap;
+}
+
+#params-panel::-webkit-scrollbar       { width: 3px; }
+#params-panel::-webkit-scrollbar-track { background: transparent; }
+#params-panel::-webkit-scrollbar-thumb { background: #222; border-radius: 2px; }
+</style>
+</head>
+
+<body>
+<header>
+  <h1>Pluck Synth</h1>
+  <span id="status" class="connecting">Connecting&hellip;</span>
+</header>
+
+<main>
+  <div id="meter-panel">
+    <span id="meter-title">Level</span>
+    <canvas id="meter"></canvas>
+  </div>
+  <div id="params-panel">
+    <div id="params"></div>
+  </div>
+</main>
+
+<script>
+'use strict';
+
+// ─── Meter layout constants ────────────────────────────────────────────────────
+//
+// Canvas is divided into three columns:
+//   [dB labels] [ticks] [gap] [bar L] [gap] [bar R] [pad]
+//
+//   LABEL_W  TICK_W  TICK_GAP  BAR_W  CHAN_GAP  BAR_W  R_PAD
+//     28    +   5   +    3   +  18   +    8    +  18  +   6   = 86px
+
+const MIN_DB         = -60;
+const PEAK_HOLD_MS   = 1800;
+const PEAK_FALL_RATE = 10;    // dB/s after hold expires
+
+const LABEL_W  = 28;
+const TICK_W   = 5;
+const TICK_GAP = 3;
+const BAR_W    = 18;
+const CHAN_GAP = 8;
+const R_PAD    = 6;
+const T_PAD    = 8;    // above 0 dB mark
+const B_PAD    = 20;   // below bottom mark, for L/R channel labels
+
+const BAR_X_L  = LABEL_W + TICK_W + TICK_GAP;       // 36
+const BAR_X_R  = BAR_X_L + BAR_W + CHAN_GAP;        // 62
+const CANVAS_W = BAR_X_R + BAR_W + R_PAD;           // 86
+const CANVAS_H = 280;
+const BAR_H    = CANVAS_H - T_PAD - B_PAD;          // 252
+
+// -3 gets a tick but no label: only 12px below 0 at this height, labels would collide
+const DB_TICKS = [0, -3, -6, -12, -18, -24, -36, -48, -60];
+const NO_LABEL = new Set([-3]);
+
+// Each zone has a lit color (signal present) and dim color (signal absent).
+// Together they fill the full bar height so there is always color, not black gaps.
+const ZONES = [
+  { top:   0, bot:  -3, lit: '#cc2222', dim: '#190707' },
+  { top:  -3, bot: -12, lit: '#cc8800', dim: '#191100' },
+  { top: -12, bot: MIN_DB, lit: '#1a9940', dim: '#071510' },
+];
+
+// ─── Canvas ───────────────────────────────────────────────────────────────────
+
+const canvas = document.getElementById('meter');
+const ctx    = canvas.getContext('2d');
+canvas.width  = CANVAS_W;
+canvas.height = CANVAS_H;
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const linToDb = v => v < 1e-7 ? -Infinity : 20 * Math.log10(v);
+
+// 0 dB maps to T_PAD; MIN_DB maps to T_PAD + BAR_H
+function dbToY(db) {
+  if (!isFinite(db) || db <= MIN_DB) return T_PAD + BAR_H;
+  if (db >= 0) return T_PAD;
+  return T_PAD + BAR_H * (1 - (db - MIN_DB) / -MIN_DB);
+}
+
+// ─── Meter state ──────────────────────────────────────────────────────────────
+
+const meter = {
+  rms:      [0, 0],
+  peakHeld: [-Infinity, -Infinity],
+  peakFall: [-Infinity, -Infinity],
+  holdEnd:  [0, 0],
+};
+
+function onMeterMsg(rms_l, rms_r, peak_l, peak_r) {
+  meter.rms[0] = rms_l;
+  meter.rms[1] = rms_r;
+
+  const now  = performance.now();
+  const pkDb = [linToDb(peak_l), linToDb(peak_r)];
+  for (let ch = 0; ch < 2; ch++) {
+    if (pkDb[ch] > meter.peakHeld[ch]) {
+      meter.peakHeld[ch] = pkDb[ch];
+      meter.peakFall[ch] = pkDb[ch];
+      meter.holdEnd[ch]  = now + PEAK_HOLD_MS;
+    }
+  }
+}
+
+// ─── Draw loop ────────────────────────────────────────────────────────────────
+
+let prevT = 0;
+
+function draw(now) {
+  requestAnimationFrame(draw);
+
+  // Cap dt so the peak doesn't jump when the tab regains focus after being backgrounded
+  const dt = Math.min((now - prevT) / 1000, 0.1);
+  prevT = now;
+
+  for (let ch = 0; ch < 2; ch++) {
+    if (now > meter.holdEnd[ch]) {
+      meter.peakFall[ch] -= PEAK_FALL_RATE * dt;
+      meter.peakHeld[ch]  = meter.peakFall[ch];
+    }
+  }
+
+  // Background
+  ctx.fillStyle = '#0d0d0d';
+  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+  // Bar backgrounds (covered by zones, but serve as a visual fallback)
+  ctx.fillStyle = '#161616';
+  ctx.fillRect(BAR_X_L, T_PAD, BAR_W, BAR_H);
+  ctx.fillRect(BAR_X_R, T_PAD, BAR_W, BAR_H);
+
+  // dB ticks and labels
+  ctx.font         = '13px "Courier New", monospace';
+  ctx.textAlign    = 'right';
+  ctx.textBaseline = 'middle';
+
+  for (const db of DB_TICKS) {
+    const y = dbToY(db);
+
+    ctx.fillStyle = '#272727';
+    ctx.fillRect(LABEL_W + 1, Math.round(y) - 0.5, TICK_W - 1, 1);
+
+    if (!NO_LABEL.has(db)) {
+      ctx.fillStyle = db === 0 ? '#505050' : '#363636';
+      ctx.fillText(String(db), LABEL_W - 2, y);
+    }
+  }
+
+  // "dB" unit label above the scale
+  ctx.fillStyle    = '#272727';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText('dB', LABEL_W - 2, T_PAD - 1);
+
+  // Level bars
+  const barBot = T_PAD + BAR_H;
+
+  for (let ch = 0; ch < 2; ch++) {
+    const x      = ch === 0 ? BAR_X_L : BAR_X_R;
+    const levelY = dbToY(linToDb(meter.rms[ch]));
+
+    for (const z of ZONES) {
+      const zTopY = dbToY(z.top);
+      const zBotY = dbToY(z.bot);
+
+      // Lit region: intersection of the filled area [levelY, barBot] with this zone
+      const litTop = Math.max(levelY, zTopY);
+      const litBot = Math.min(barBot, zBotY);
+      if (litTop < litBot) {
+        ctx.fillStyle = z.lit;
+        ctx.fillRect(x, litTop, BAR_W, litBot - litTop);
+      }
+
+      // Dim region: intersection of the empty area [T_PAD, levelY] with this zone
+      const dimTop = Math.max(T_PAD, zTopY);
+      const dimBot = Math.min(levelY, zBotY);
+      if (dimTop < dimBot) {
+        ctx.fillStyle = z.dim;
+        ctx.fillRect(x, dimTop, BAR_W, dimBot - dimTop);
+      }
+    }
+
+    // Peak hold line, clamped to bar bounds
+    if (isFinite(meter.peakHeld[ch]) && meter.peakHeld[ch] > MIN_DB) {
+      const py = Math.max(T_PAD + 1, Math.min(barBot - 1, dbToY(meter.peakHeld[ch])));
+      ctx.fillStyle = meter.peakHeld[ch] >= -3 ? '#ff6666' : '#44bb66';
+      ctx.fillRect(x, py - 1, BAR_W, 2);
+    }
+  }
+
+  // L / R channel labels
+  ctx.fillStyle    = '#363636';
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'top';
+  ctx.font         = '13px "Courier New", monospace';
+  ctx.fillText('L', BAR_X_L + BAR_W / 2, barBot + 6);
+  ctx.fillText('R', BAR_X_R + BAR_W / 2, barBot + 6);
+}
+
+requestAnimationFrame(draw);
+
+// ─── WebSocket ────────────────────────────────────────────────────────────────
+
+const ws       = new WebSocket(`ws://${location.host}/ws`);
+const statusEl = document.getElementById('status');
+const paramsEl = document.getElementById('params');
+const knobs    = {};
+
+ws.onopen  = () => { statusEl.textContent = 'Connected';    statusEl.className = 'connected';    };
+ws.onclose = () => { statusEl.textContent = 'Disconnected'; statusEl.className = 'disconnected'; };
+
+// ─── Knob drawing ─────────────────────────────────────────────────────────────
+//
+// Canvas angles (0 = right/3 o'clock, clockwise):
+//   7 o'clock = 120°,  5 o'clock = 60°
+//   Clockwise from 7 to 5 the long way (through 9, 12, 3) = 300° sweep
+
+const KNOB_START = 120 * Math.PI / 180;  // 7 o'clock
+const KNOB_END   =  60 * Math.PI / 180;  // 5 o'clock
+const KNOB_SWEEP = 300 * Math.PI / 180;
+
+function drawKnob(canvas, value) {
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.width / dpr, h = canvas.height / dpr;
+  const kctx = canvas.getContext('2d');
+  kctx.clearRect(0, 0, canvas.width, canvas.height);
+  kctx.save();
+  kctx.scale(dpr, dpr);
+
+  const cx = w / 2, cy = h / 2 + 2;
+  const r = 20;
+  const valueA = KNOB_START + KNOB_SWEEP * value;
+
+  // Background arc: clockwise from 7 to 5 o'clock (300°, gap at bottom)
+  kctx.beginPath();
+  kctx.arc(cx, cy, r, KNOB_START, KNOB_END, false);
+  kctx.strokeStyle = '#282828';
+  kctx.lineWidth = 3;
+  kctx.lineCap = 'round';
+  kctx.stroke();
+
+  // Filled arc: clockwise from 7 o'clock to current position
+  if (value > 0) {
+    kctx.beginPath();
+    kctx.arc(cx, cy, r, KNOB_START, valueA, false);
+    kctx.strokeStyle = '#224488';
+    kctx.lineWidth = 3;
+    kctx.lineCap = 'round';
+    kctx.stroke();
+  }
+
+  // Center dot
+  kctx.beginPath();
+  kctx.arc(cx, cy, 5, 0, Math.PI * 2);
+  kctx.fillStyle = '#1e1e1e';
+  kctx.fill();
+  kctx.strokeStyle = '#333';
+  kctx.lineWidth = 1;
+  kctx.stroke();
+
+  kctx.restore();
+}
+
+// ─── Param messages ───────────────────────────────────────────────────────────
+
+ws.onmessage = ({ data }) => {
+  const msg = JSON.parse(data);
+
+  if (msg.type === 'meter') {
+    onMeterMsg(msg.rms_l, msg.rms_r, msg.peak_l, msg.peak_r);
+    return;
+  }
+
+  if (msg.type === 'param') {
+    const k = knobs[msg.id];
+    if (k) {
+      k.value = msg.normalized;
+      drawKnob(k.canvas, msg.normalized);
+      k.val.textContent = fmtVal(msg.value, msg.unit);
+      return;
+    }
+
+    const cell = document.createElement('div');
+    cell.className = 'knob';
+
+    const cnv = document.createElement('canvas');
+    const dpr = window.devicePixelRatio || 1;
+    cnv.width  = 60 * dpr;
+    cnv.height = 60 * dpr;
+    cnv.style.width  = '60px';
+    cnv.style.height = '60px';
+
+    const label = document.createElement('div');
+    label.className   = 'knob-label';
+    label.textContent = msg.name;
+
+    const val = document.createElement('div');
+    val.className   = 'knob-val';
+    val.textContent = fmtVal(msg.value, msg.unit);
+
+    cell.append(cnv, label, val);
+    paramsEl.appendChild(cell);
+
+    let currentValue = msg.normalized;
+    drawKnob(cnv, currentValue);
+    knobs[msg.id] = { canvas: cnv, val, value: currentValue };
+
+    let dragStartY = 0, dragStartVal = 0;
+
+    cell.addEventListener('pointerdown', e => {
+      cell.setPointerCapture(e.pointerId);
+      dragStartY   = e.clientY;
+      dragStartVal = currentValue;
+      e.preventDefault();
+    });
+
+    cell.addEventListener('pointermove', e => {
+      if (!cell.hasPointerCapture(e.pointerId)) return;
+      const delta = (dragStartY - e.clientY) / 150;
+      currentValue = Math.min(1, Math.max(0, dragStartVal + delta));
+      knobs[msg.id].value = currentValue;
+      drawKnob(cnv, currentValue);
+      // type must be the first key -- required by MsgDispatcher::extract_type
+      ws.send(JSON.stringify({ type: 'set_param', id: msg.id, value: currentValue }));
+    });
+  }
+};
+
+function fmtVal(v, unit) {
+  const s = v >= 1000 ? v.toFixed(0)
+          : v >= 100  ? v.toFixed(1)
+          : v >= 10   ? v.toFixed(2)
+          :             v.toFixed(3);
+  return unit ? `${s} ${unit}` : s;
+}
+</script>
+</body>
+</html>

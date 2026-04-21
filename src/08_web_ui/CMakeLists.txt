@@ -42,6 +42,10 @@ add_executable(08_web_ui
     web/web_server.cpp
 )
 
+target_compile_definitions(08_web_ui PRIVATE
+    HTML_PATH="${CMAKE_CURRENT_SOURCE_DIR}/web/index.html"
+)
+
 target_include_directories(08_web_ui PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/deps/uWebSockets/src
