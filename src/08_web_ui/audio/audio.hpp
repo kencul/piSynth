@@ -43,6 +43,10 @@ private:
 	std::vector<float> mix_r;
 	std::vector<int16_t> buf;
 
-	int meter_frame    = 0;
-	int meter_interval = 25;
+	int   meter_frame    = 0;
+	int   meter_interval = 25;
+	float meter_rms_l    = 0;
+	float meter_rms_r    = 0;
+	float meter_peak_l   = 0;
+	float meter_peak_r   = 0;
 };

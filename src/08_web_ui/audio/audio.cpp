@@ -95,17 +95,23 @@ void AudioEngine::audio_loop() {
 		master_bus.process(mix_l, mix_r);
 
 		if (on_meter) {
-			float rms_l = 0, rms_r = 0, peak_l = 0, peak_r = 0;
 			for (size_t i = 0; i < period_size; ++i) {
-				rms_l += mix_l[i] * mix_l[i];
-				rms_r += mix_r[i] * mix_r[i];
-				peak_l = std::max(peak_l, std::abs(mix_l[i]));
-				peak_r = std::max(peak_r, std::abs(mix_r[i]));
+				meter_rms_l += mix_l[i] * mix_l[i];
+				meter_rms_r += mix_r[i] * mix_r[i];
+				meter_peak_l = std::max(meter_peak_l, std::abs(mix_l[i]));
+				meter_peak_r = std::max(meter_peak_r, std::abs(mix_r[i]));
 			}
 			if (++meter_frame >= meter_interval) {
-				meter_frame = 0;
-				on_meter(
-				    std::sqrt(rms_l / period_size), std::sqrt(rms_r / period_size), peak_l, peak_r);
+				float total = static_cast<float>(period_size * meter_interval);
+				on_meter(std::sqrt(meter_rms_l / total),
+				         std::sqrt(meter_rms_r / total),
+				         meter_peak_l,
+				         meter_peak_r);
+				meter_frame  = 0;
+				meter_rms_l  = 0;
+				meter_rms_r  = 0;
+				meter_peak_l = 0;
+				meter_peak_r = 0;
 			}
 		}
 
