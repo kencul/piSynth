@@ -1,5 +1,6 @@
 #pragma once
 #include "../adsr/adsr.hpp"
+#include "../common/waveguide_snapshot.hpp"
 #include "../config.hpp"
 #include "../effects/svf.hpp"
 #include "../osc/osc.hpp"
@@ -36,6 +37,7 @@ public:
 	std::optional<PendingNote> consume_pending();
 
 	void process(std::span<float> mix_l, std::span<float> mix_r, float cutoff_hz, float resonance);
+	void snapshot(WaveguideSnapshot &out) const;
 
 private:
 	// scratch buffer for osc output before pan is applied

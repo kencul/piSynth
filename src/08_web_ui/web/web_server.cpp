@@ -27,6 +27,12 @@ void WebServer::start(int port) {
 void WebServer::stop() {
 	if (!running.exchange(false)) return;
 
+	if (fft_timer) {
+		us_timer_close(fft_timer);
+		fft_timer = nullptr;
+	}
+	fft.destroy();
+
 	if (loop) {
 		loop->defer([this] {
 			auto clients_copy = clients;
@@ -52,6 +58,9 @@ void WebServer::broadcast_direct(const std::string &msg) {
 }
 
 void WebServer::send_initial_state(WS *ws) {
+	ws->send(ConfigMsg {static_cast<int>(Config::SAMPLE_RATE), FftProcessor::OUT_BINS}.serialize(),
+	         uWS::OpCode::TEXT);
+
 	for (int i = 0; i < static_cast<int>(SynthParams::ParamId::COUNT); ++i) {
 		auto id = static_cast<SynthParams::ParamId>(i);
 		auto d  = params.descriptor(id);
@@ -64,11 +73,30 @@ void WebServer::send_initial_state(WS *ws) {
 void WebServer::run(int port) {
 	loop = uWS::Loop::get();
 
+	fft.init();
+	fft_timer = us_create_timer(reinterpret_cast<us_loop_t *>(loop), 0, sizeof(WebServer *));
+
+	// store `this` in the timer's ext data
+	*(WebServer **)us_timer_ext(fft_timer) = this;
+
+	us_timer_set(
+	    fft_timer,
+	    [](us_timer_t *t) {
+		    auto *self = *(WebServer **)us_timer_ext(t);
+		    if (!self->fft_acc) return;
+		    auto result = self->fft.process(*self->fft_acc);
+		    if (result) self->broadcast_direct(result->serialize());
+	    },
+	    33,
+	    33); // fire every 33ms (~30fps), first fire after 33ms
+
 	uWS::App()
 	    .get("/",
 	         [this](auto *res, auto *) {
 		         res->cork([this, res] {
 			         res->writeHeader("Content-Type", "text/html");
+			         res->writeHeader("Cache-Control",
+			                          "no-store"); // never cache — always fetch fresh
 			         res->end(html);
 		         });
 	         })

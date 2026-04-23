@@ -32,6 +32,11 @@ int main() {
 		web.broadcast(MeterMsg {rl, rr, pl, pr});
 	};
 
+	// audio thread -> web: waveguide state at ~30fps
+	audio.on_waveguide = [&web](WaveguideSnapshot snap) {
+		web.broadcast(WaveguideMsg {std::move(snap)});
+	};
+
 	// MIDI thread -> web: broadcast param change to all clients
 	midi.on_param_change =
 	    [&web](SynthParams::ParamId id, float norm, float val, const char *name, const char *unit) {
@@ -55,9 +60,11 @@ int main() {
 	std::signal(SIGINT, on_signal);
 	std::signal(SIGTERM, on_signal);
 
+	web.set_fft_acc(&audio.get_fft_acc());
+
 	audio.start();
 	midi.start();
-	web.start(9001);
+	web.start(9002);
 
 	std::cout << "Synth running. Press Ctrl+C to quit.\n";
 	while (!should_quit.load()) pause();

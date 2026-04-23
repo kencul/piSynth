@@ -1,6 +1,7 @@
 #pragma once
 #include "../common/smoothed_value.hpp"
 #include "../common/synth_params.hpp"
+#include "../common/waveguide_snapshot.hpp"
 #include "../config.hpp"
 #include "note_event.hpp"
 #include "voice.hpp"
@@ -13,6 +14,7 @@ public:
 	void init(int period_size);
 	void handle(const NoteEvent &ev);
 	void process(std::span<float> mix_l, std::span<float> mix_r);
+	WaveguideSnapshot snapshot() const;
 
 private:
 	SynthParams &params;

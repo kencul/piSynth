@@ -48,7 +48,7 @@ void Pluck::clear() {
 	write_pos = 0;
 }
 
-float Pluck::interpolate_delay_line(float read_idx_float) {
+float Pluck::interpolate_delay_line(float read_idx_float) const {
 	// Ensure `read_idx_float` is positive for modulo arithmetic.
 	// fmod handles negatives cleanly and signals intent
 	read_idx_float = std::fmod(read_idx_float, static_cast<float>(MAX_DELAY));
@@ -58,6 +58,23 @@ float Pluck::interpolate_delay_line(float read_idx_float) {
 	int idx1   = (idx0 + 1) & (MAX_DELAY - 1);
 	float frac = read_idx_float - std::floor(read_idx_float);
 	return delay_line[idx0] + frac * (delay_line[idx1] - delay_line[idx0]);
+}
+
+void Pluck::snapshot(WaveguideSnapshot &out) const {
+	out.fret_pos   = half_delay_len / (MAX_DELAY * 0.5f);
+	out.pickup_pos = pickup_pos_norm;
+	out.active     = true;
+
+	// Resample the full active string length into all POINTS slots.
+	// Every output point maps to a real delay line position — no zero-fill.
+	// t=0 is the nut end, t=1 is the fret/bridge end.
+	for (int i = 0; i < WaveguideSnapshot::POINTS; ++i) {
+		float t        = static_cast<float>(i)
+		               / static_cast<float>(WaveguideSnapshot::POINTS - 1);
+		float read_pos = static_cast<float>(write_pos) - half_delay_len
+		               + t * half_delay_len;
+		out.displacement[i] = interpolate_delay_line(read_pos);
+	}
 }
 
 void Pluck::process(std::span<float> buf) {

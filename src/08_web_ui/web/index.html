@@ -18,6 +18,13 @@ header h1 { font-size: clamp(16px, 2vw, 24px); letter-spacing: 3px; text-transfo
 #status { font-size: clamp(12px, 1.2vw, 14px); font-weight: bold; }
 #status.connected { color: #33aa55; } #status.disconnected { color: #883333; }
 
+/* ── String Visualizer ── */
+#string-panel {
+  width: 100%; height: 120px; background: #0d0d0d;
+  border-bottom: 1px solid #1c1c1c; flex-shrink: 0;
+}
+#string-canvas { display: block; width: 100%; height: 100%; }
+
 main { display: flex; flex: 1; overflow: hidden; }
 
 /* ── Meter ── */
@@ -54,6 +61,7 @@ main { display: flex; flex: 1; overflow: hidden; }
   <h1>Pluck Synth</h1>
   <span id="status" class="connecting">Connecting&hellip;</span>
 </header>
+<div id="string-panel"><canvas id="string-canvas"></canvas></div>
 <main>
   <div id="meter-panel"><span id="meter-title">Level</span><canvas id="meter"></canvas></div>
   <div id="params-panel"></div>
@@ -83,12 +91,34 @@ const ZONES = [
   { top: -12, bot: MIN_DB, lit: '#33ff77', dim: '#002200' },
 ];
 
+let SPEC_SR   = 48000;  // fallback until config message arrives
+let SPEC_BINS = 256;
+const SPEC_MIN_HZ = 40;
+const SPEC_MAX_HZ = 15000;
+
 // ── State ──
 const meter = { rms: [0,0], peakHeld: [-60,-60], peakFall: [-60,-60], holdEnd: [0,0] };
 const knobs = {};
 let prevT = 0;
 
 const pPanel = $('params-panel'), mCanvas = $('meter'), mCtx = mCanvas.getContext('2d');
+const sCanvas = $('string-canvas'), sCtx = sCanvas.getContext('2d');
+
+// ── Waveguide State ──
+const wgState = { displacement: new Float32Array(256), fret_pos: 0, pickup_pos: 0.1, active: false };
+
+// ── Spectrogram State ──
+let sgCanvas = null, sgCtx = null;
+const dbToColor = db => {
+  const t = Math.max(0, Math.min(1, (db + 80) / 80));
+  return `hsl(${240 * (1 - t)},100%,${15 + t * 55}%)`;
+};
+const initSg = (w, h) => {
+  sgCanvas = new OffscreenCanvas(w, h);
+  sgCtx = sgCanvas.getContext('2d');
+  sgCtx.fillStyle = '#0a0a0a';
+  sgCtx.fillRect(0, 0, w, h);
+};
 
 // ── Initialization & Layout ──
 const getGroupContainer = name => {
@@ -107,6 +137,8 @@ const getGroupContainer = name => {
 
 const handleResize = () => {
   mCanvas.width = mCanvas.clientWidth * dpr(); mCanvas.height = mCanvas.clientHeight * dpr();
+  sCanvas.width = sCanvas.clientWidth * dpr(); sCanvas.height = sCanvas.clientHeight * dpr();
+  initSg(Math.floor(sCanvas.width / 2), sCanvas.height);
   Object.values(knobs).forEach(k => {
     k.cvs.width = k.cvs.clientWidth * dpr(); k.cvs.height = k.cvs.clientHeight * dpr();
     drawKnob(k.cvs, k.val);
@@ -134,8 +166,63 @@ const drawKnob = (cvs, val) => {
   ctx.strokeStyle = '#fff'; ctx.lineWidth = 3*d; ctx.lineCap = 'round'; ctx.stroke();
 };
 
+const drawString = () => {
+  const w = sCanvas.width, h = sCanvas.height, d = dpr();
+  if (!w || !h) return;
+  sCtx.clearRect(0, 0, w, h);
+
+  const halfW = Math.floor(w / 2);
+  const cy = h / 2;
+  const POINTS = 256, HALF = POINTS / 2;
+
+  // — Left half: string, always resampled to fill halfW —
+  let mean = 0;
+  for (let i = 0; i < HALF; i++)
+    mean += wgState.displacement[i] + wgState.displacement[POINTS - 1 - i];
+  mean /= HALF;
+
+  sCtx.beginPath();
+  for (let i = 0; i < HALF; i++) {
+    const x = i * halfW / (HALF - 1);
+    const y = cy - (wgState.displacement[i] + wgState.displacement[POINTS - 1 - i] - mean) * h;
+    i === 0 ? sCtx.moveTo(x, y) : sCtx.lineTo(x, y);
+  }
+  sCtx.strokeStyle = wgState.active ? '#55aaff' : '#2a4466';
+  sCtx.lineWidth = 1.5 * d;
+  sCtx.lineJoin = 'round';
+  sCtx.stroke();
+
+  // Pickup marker
+  if (wgState.active) {
+    const pickupX = wgState.pickup_pos * halfW;
+    sCtx.beginPath();
+    sCtx.moveTo(pickupX, cy - h * 0.18);
+    sCtx.lineTo(pickupX, cy + h * 0.18);
+    sCtx.strokeStyle = '#ffaa33';
+    sCtx.lineWidth = 2 * d;
+    sCtx.stroke();
+  }
+
+  // — Divider —
+  sCtx.beginPath();
+  sCtx.moveTo(halfW + 0.5, 0);
+  sCtx.lineTo(halfW + 0.5, h);
+  sCtx.strokeStyle = '#1c1c1c';
+  sCtx.lineWidth = 1;
+  sCtx.stroke();
+
+  // — Right half: spectrogram waterfall —
+  if (sgCanvas) {
+    sCtx.drawImage(sgCanvas, halfW, 0);
+  } else {
+    sCtx.fillStyle = '#0a0a0a';
+    sCtx.fillRect(halfW, 0, halfW, h);
+  }
+};
+
 const draw = now => {
   requestAnimationFrame(draw);
+  drawString();
   const dt = Math.min((now - prevT) / 1000, 0.1); prevT = now;
   const w = mCanvas.width, h = mCanvas.height, d = dpr();
   if (!w || !h) return;
@@ -217,6 +304,28 @@ ws.onmessage = ({ data }) => {
         meter.holdEnd[ch] = performance.now() + PEAK_HOLD_MS;
       }
     });
+  } else if (msg.type === 'waveguide') {
+    wgState.active     = !!msg.active;
+    wgState.fret_pos   = msg.fret_pos;
+    wgState.pickup_pos = msg.pickup_pos;
+    const src = msg.displacement;
+    for (let i = 0; i < 256; i++) wgState.displacement[i] = src[i];
+  } else if (msg.type === 'spectrum') {
+    if (!sgCanvas) return;
+    const bins = msg.bins, sw = sgCanvas.width, sh = sgCanvas.height;
+
+    // scroll left by one pixel
+    sgCtx.drawImage(sgCanvas, -1, 0);
+
+    // draw one column using log frequency axis
+    // t=0 at top (high freq), t=1 at bottom (low freq)
+    for (let py = 0; py < sh; py++) {
+      const t   = py / (sh - 1);
+      const hz  = SPEC_MAX_HZ * Math.pow(SPEC_MIN_HZ / SPEC_MAX_HZ, t);
+      const bin = Math.round(hz * SPEC_BINS / (SPEC_SR / 2));
+      sgCtx.fillStyle = dbToColor(bins[Math.min(SPEC_BINS - 1, Math.max(0, bin))]);
+      sgCtx.fillRect(sw - 1, py, 1, 1);
+    }
   } else if (msg.type === 'param') {
     let k = knobs[msg.id];
     if (!k) {
@@ -237,6 +346,9 @@ ws.onmessage = ({ data }) => {
     k.val = msg.normalized;
     k.el.textContent = fmtVal(msg.value, msg.unit);
     drawKnob(k.cvs, k.val);
+  } else if (msg.type === 'config') {
+    SPEC_SR   = msg.sample_rate;
+    SPEC_BINS = msg.spectrum_bins;
   }
 };
 

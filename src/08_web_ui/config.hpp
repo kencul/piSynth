@@ -47,6 +47,10 @@ inline constexpr float KILL_MS = 1.5f; // ~64 samples at 44100Hz
 inline constexpr float MIN_DECAY_MS = 10.0f;
 inline constexpr float MAX_DECAY_MS = 15000.0f;
 
+// ----- FFT -------
+inline constexpr int FFT_SIZE     = 2048;
+inline constexpr int FFT_OUT_BINS = 2048; // downsampled display bins sent to the UI
+
 // ----- Effects -------
 
 // Saturation

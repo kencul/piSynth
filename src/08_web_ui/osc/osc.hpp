@@ -1,4 +1,5 @@
 #pragma once
+#include "../common/waveguide_snapshot.hpp"
 #include "../config.hpp"
 #include <array>
 #include <cmath>
@@ -19,9 +20,10 @@ public:
 	void clear();
 
 	void process(std::span<float> buf);
+	void snapshot(WaveguideSnapshot &out) const;
 
 private:
-	float interpolate_delay_line(float read_idx_float);
+	float interpolate_delay_line(float read_idx_float) const;
 	static constexpr int MAX_DELAY = 8192;
 	static_assert((MAX_DELAY & (MAX_DELAY - 1)) == 0,
 	              "MAX_DELAY must be a power of two for bitmask wrapping");

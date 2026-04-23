@@ -68,6 +68,8 @@ void Voice::process(std::span<float> mix_l,
 	}
 }
 
+void Voice::snapshot(WaveguideSnapshot &out) const { osc.snapshot(out); }
+
 bool Voice::is_free() const { return !active; }
 bool Voice::is_releasing() const { return active && envelope.is_releasing(); }
 bool Voice::is_active() const { return active; }

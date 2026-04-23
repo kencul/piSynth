@@ -107,6 +107,7 @@ void AudioEngine::audio_loop() {
 				         std::sqrt(meter_rms_r / total),
 				         meter_peak_l,
 				         meter_peak_r);
+				if (on_waveguide) on_waveguide(voice_manager.snapshot());
 				meter_frame  = 0;
 				meter_rms_l  = 0;
 				meter_rms_r  = 0;
@@ -120,6 +121,8 @@ void AudioEngine::audio_loop() {
 			    static_cast<int16_t>(std::clamp(mix_l[i], -1.0f, 1.0f) * Config::SAMPLE_SCALE);
 			buf[i * channels + 1] =
 			    static_cast<int16_t>(std::clamp(mix_r[i], -1.0f, 1.0f) * Config::SAMPLE_SCALE);
+
+			fft_acc.write((mix_l[i] + mix_r[i]) * 0.5f);
 		}
 
 		snd_pcm_sframes_t written = snd_pcm_writei(handle, buf.data(), period_size);

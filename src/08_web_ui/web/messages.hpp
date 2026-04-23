@@ -1,7 +1,21 @@
 #pragma once
 #include "../common/synth_params.hpp"
+#include "../common/waveguide_snapshot.hpp"
+#include "../config.hpp"
 #include "msg_builder.hpp"
 #include <string>
+
+struct ConfigMsg {
+	int sample_rate;
+	int spectrum_bins;
+
+	std::string serialize() const {
+		return JsonMsg("config")
+		    .field("sample_rate", sample_rate)
+		    .field("spectrum_bins", spectrum_bins)
+		    .str();
+	}
+};
 
 struct MeterMsg {
 	float rms_l, rms_r, peak_l, peak_r;
@@ -13,6 +27,36 @@ struct MeterMsg {
 		    .field("peak_l", peak_l)
 		    .field("peak_r", peak_r)
 		    .str();
+	}
+};
+
+struct WaveguideMsg {
+	WaveguideSnapshot snap;
+
+	std::string serialize() const {
+		return JsonMsg("waveguide")
+		    .field("active", static_cast<int>(snap.active))
+		    .field("fret_pos", snap.fret_pos)
+		    .field("pickup_pos", snap.pickup_pos)
+		    .array("displacement", snap.displacement.data(), WaveguideSnapshot::POINTS)
+		    .str();
+	}
+};
+
+struct SpectrumMsg {
+	std::array<float, Config::FFT_OUT_BINS> bins;
+
+	std::string serialize() const {
+		std::string s = R"({"type":"spectrum","bins":[)";
+		char tmp[16];
+		for (int i = 0; i < Config::FFT_OUT_BINS; ++i) {
+			if (i > 0) s += ',';
+			auto [ptr, _] =
+			    std::to_chars(tmp, tmp + sizeof(tmp), bins[i], std::chars_format::fixed, 1);
+			s.append(tmp, ptr);
+		}
+		s += "]}";
+		return s;
 	}
 };
 

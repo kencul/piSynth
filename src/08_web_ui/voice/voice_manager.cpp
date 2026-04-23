@@ -70,6 +70,23 @@ int VoiceManager::allocate_voice() {
 
 double VoiceManager::midi_to_hz(int note) { return 440.0 * std::pow(2.0, (note - 69) / 12.0); }
 
+WaveguideSnapshot VoiceManager::snapshot() const {
+	int newest_idx = -1;
+	int newest_age = -1;
+	for (int i = 0; i < Config::MAX_VOICES; ++i) {
+		if (voices[i].is_active() && voice_age[i] > newest_age) {
+			newest_age = voice_age[i];
+			newest_idx = i;
+		}
+	}
+
+	WaveguideSnapshot snap;
+	if (newest_idx >= 0) {
+		voices[newest_idx].snapshot(snap);
+	}
+	return snap;
+}
+
 void VoiceManager::trigger_note(Voice &voice, int midi_note, double hz, int velocity) {
 	float attack     = params.get_value(SynthParams::ParamId::AttackTime);
 	float decay      = params.get_value(SynthParams::ParamId::DecayTime);

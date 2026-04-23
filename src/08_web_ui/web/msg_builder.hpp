@@ -36,6 +36,20 @@ public:
 		return *this;
 	}
 
+	JsonMsg &array(std::string_view key, const float *data, int count) {
+		append_key(key);
+		buf += '[';
+		for (int i = 0; i < count; ++i) {
+			if (i > 0) buf += ',';
+			char tmp[32];
+			auto [ptr, _] =
+			    std::to_chars(tmp, tmp + sizeof(tmp), data[i], std::chars_format::fixed, 4);
+			buf.append(tmp, ptr);
+		}
+		buf += ']';
+		return *this;
+	}
+
 	std::string str() {
 		buf += '}';
 		return std::move(buf);

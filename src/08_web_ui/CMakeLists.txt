@@ -3,21 +3,21 @@ file(GLOB USOCKETS_SOURCES
     ${CMAKE_SOURCE_DIR}/deps/uWebSockets/uSockets/src/eventing/*.c
     ${CMAKE_SOURCE_DIR}/deps/uWebSockets/uSockets/src/crypto/*.c
 )
-
-# exclude SSL backends
 list(FILTER USOCKETS_SOURCES EXCLUDE REGEX ".*openssl.*")
 list(FILTER USOCKETS_SOURCES EXCLUDE REGEX ".*wolfssl.*")
 list(FILTER USOCKETS_SOURCES EXCLUDE REGEX ".*boringssl.*")
 
 add_library(uSockets STATIC ${USOCKETS_SOURCES})
-
 target_include_directories(uSockets PUBLIC
     ${CMAKE_SOURCE_DIR}/deps/uWebSockets/uSockets/src
+    ${CMAKE_SOURCE_DIR}/deps/pffft/include/pffft
 )
-target_compile_definitions(uSockets PUBLIC 
-    LIBUS_NO_SSL=1 
+target_compile_definitions(uSockets PUBLIC
+    LIBUS_NO_SSL=1
     UWS_NO_ZLIB=1
 )
+
+add_subdirectory(${CMAKE_SOURCE_DIR}/deps/pffft ${CMAKE_BINARY_DIR}/deps/pffft)
 
 add_executable(08_web_ui
     main.cpp
@@ -39,6 +39,7 @@ add_executable(08_web_ui
     effects/primitives/comb.cpp
     effects/freeverb.cpp
     effects/ping_pong.cpp
+    fft/fft_processor.cpp
     web/web_server.cpp
 )
 
@@ -55,6 +56,7 @@ target_link_libraries(08_web_ui PRIVATE
     ALSA::ALSA
     atomic
     uSockets
+    PFFFT::PFFFT
 )
 
 add_custom_command(TARGET 08_web_ui POST_BUILD
