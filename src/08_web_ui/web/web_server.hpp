@@ -19,7 +19,7 @@ public:
 	void start(int port);
 	void stop();
 
-	void set_fft_acc(FftAccumulator<8192> *acc) { fft_acc = acc; }
+	void set_fft_acc(FftAccumulator<Config::FFT_ACC_SIZE> *acc) { fft_acc = acc; }
 
 	// Thread-safe: moves the struct into a defer lambda so the uWS thread serializes and sends.
 	// Safe to call from the audio or MIDI thread.
@@ -40,8 +40,8 @@ private:
 	std::string html;
 
 	FftProcessor fft;
-	us_timer_t *fft_timer         = nullptr;
-	FftAccumulator<8192> *fft_acc = nullptr;
+	us_timer_t *fft_timer                         = nullptr;
+	FftAccumulator<Config::FFT_ACC_SIZE> *fft_acc = nullptr;
 
 	std::thread thread;
 	std::atomic<bool> running {false};

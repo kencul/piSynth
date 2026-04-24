@@ -48,8 +48,9 @@ inline constexpr float MIN_DECAY_MS = 10.0f;
 inline constexpr float MAX_DECAY_MS = 15000.0f;
 
 // ----- FFT -------
-inline constexpr int FFT_SIZE     = 2048;
-inline constexpr int FFT_OUT_BINS = 2048; // downsampled display bins sent to the UI
+inline constexpr int FFT_SIZE     = 4096;
+inline constexpr int FFT_ACC_SIZE = 8192;
+inline constexpr int FFT_OUT_BINS = 4096; // downsampled display bins sent to the UI
 
 // ----- Effects -------
 

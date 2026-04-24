@@ -93,8 +93,11 @@ const ZONES = [
 
 let SPEC_SR   = 48000;  // fallback until config message arrives
 let SPEC_BINS = 256;
-const SPEC_MIN_HZ = 40;
-const SPEC_MAX_HZ = 15000;
+const SPEC_MIN_HZ = 60;
+const SPEC_MAX_HZ = 20000;
+
+let smoothedBins = null;
+const SMOOTHING = 0.05;
 
 // ── State ──
 const meter = { rms: [0,0], peakHeld: [-60,-60], peakFall: [-60,-60], holdEnd: [0,0] };
@@ -312,20 +315,69 @@ ws.onmessage = ({ data }) => {
     for (let i = 0; i < 256; i++) wgState.displacement[i] = src[i];
   } else if (msg.type === 'spectrum') {
     if (!sgCanvas) return;
-    const bins = msg.bins, sw = sgCanvas.width, sh = sgCanvas.height;
+    const bins = msg.bins;
+    const sw = sgCanvas.width;
+    const sh = sgCanvas.height;
 
-    // scroll left by one pixel
-    sgCtx.drawImage(sgCanvas, -1, 0);
-
-    // draw one column using log frequency axis
-    // t=0 at top (high freq), t=1 at bottom (low freq)
-    for (let py = 0; py < sh; py++) {
-      const t   = py / (sh - 1);
-      const hz  = SPEC_MAX_HZ * Math.pow(SPEC_MIN_HZ / SPEC_MAX_HZ, t);
-      const bin = Math.round(hz * SPEC_BINS / (SPEC_SR / 2));
-      sgCtx.fillStyle = dbToColor(bins[Math.min(SPEC_BINS - 1, Math.max(0, bin))]);
-      sgCtx.fillRect(sw - 1, py, 1, 1);
+    // Initialize or update the persistent buffer for temporal averaging
+    if (!smoothedBins || smoothedBins.length !== bins.length) {
+      smoothedBins = new Float32Array(bins.length).fill(-80);
     }
+    for (let i = 0; i < bins.length; i++) {
+      smoothedBins[i] = (smoothedBins[i] * SMOOTHING) + (bins[i] * (1 - SMOOTHING));
+    }
+
+    sgCtx.fillStyle = '#0a0a0a';
+    sgCtx.fillRect(0, 0, sw, sh);
+    
+    sgCtx.beginPath();
+    sgCtx.moveTo(0, sh);
+
+    // Use a step to sample points for the curve to avoid jagged edges
+    const step = 4; 
+    const points = [];
+
+    for (let px = 0; px <= sw; px += step) {
+      const t = px / sw;
+      // Map t=0 to MIN and t=1 to MAX for Left->Right frequency orientation
+      const hz = SPEC_MIN_HZ * Math.pow(SPEC_MAX_HZ / SPEC_MIN_HZ, t);
+      const binIdx = hz * SPEC_BINS / (SPEC_SR / 2);
+      
+      // Bilinear interpolation between bins ensures smooth frequency transitions
+      const i0 = Math.max(0, Math.min(SPEC_BINS - 1, Math.floor(binIdx)));
+      const i1 = Math.max(0, Math.min(SPEC_BINS - 1, i0 + 1));
+      const fract = binIdx - i0;
+      const db = smoothedBins[i0] * (1 - fract) + smoothedBins[i1] * fract;
+
+      // Normalizing -80dB to 0dB range for the canvas height
+      const y = sh - Math.max(0, Math.min(sh, (db + 80) / 80 * sh));
+      points.push({x: px, y: y});
+    }
+
+    // Draw smooth curves through the midpoints of the sampled data
+    if (points.length > 0) {
+      sgCtx.lineTo(points[0].x, points[0].y);
+      for (let i = 1; i < points.length - 1; i++) {
+        const xc = (points[i].x + points[i + 1].x) / 2;
+        const yc = (points[i].y + points[i + 1].y) / 2;
+        sgCtx.quadraticCurveTo(points[i].x, points[i].y, xc, yc);
+      }
+      sgCtx.lineTo(sw, points[points.length - 1].y);
+    }
+
+    // Close the path at the bottom for a solid fill
+    sgCtx.lineTo(sw, sh);
+    sgCtx.lineTo(0, sh);
+    sgCtx.closePath();
+
+    // Simple semi-transparent UI blue fill
+    sgCtx.fillStyle = 'rgba(85, 170, 255, 0.2)';
+    sgCtx.fill();
+    
+    sgCtx.strokeStyle = '#55aaff';
+    sgCtx.lineWidth = 2;
+    sgCtx.lineJoin = 'round';
+    sgCtx.stroke();
   } else if (msg.type === 'param') {
     let k = knobs[msg.id];
     if (!k) {

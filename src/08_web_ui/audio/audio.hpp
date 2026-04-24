@@ -24,7 +24,7 @@ public:
 	std::function<void(float rms_l, float rms_r, float peak_l, float peak_r)> on_meter;
 	std::function<void(WaveguideSnapshot)> on_waveguide;
 
-	FftAccumulator<8192> &get_fft_acc() { return fft_acc; }
+	FftAccumulator<Config::FFT_ACC_SIZE> &get_fft_acc() { return fft_acc; }
 
 private:
 	void audio_loop();
@@ -48,10 +48,10 @@ private:
 	std::vector<float> mix_r;
 	std::vector<int16_t> buf;
 
-	FftAccumulator<8192> fft_acc;
+	FftAccumulator<Config::FFT_ACC_SIZE> fft_acc;
 
 	int meter_frame    = 0;
-	int meter_interval = 25;
+	int meter_interval = 1;
 	float meter_rms_l  = 0;
 	float meter_rms_r  = 0;
 	float meter_peak_l = 0;

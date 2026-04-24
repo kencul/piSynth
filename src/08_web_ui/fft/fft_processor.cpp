@@ -28,14 +28,12 @@ float FftProcessor::bin_to_db(float re, float im) const {
 	return mag < 1e-10f ? -80.0f : 20.0f * std::log10(mag);
 }
 
-template <int N>
-std::optional<SpectrumMsg> FftProcessor::process(FftAccumulator<N> &acc) {
+template <int N> std::optional<SpectrumMsg> FftProcessor::process(FftAccumulator<N> &acc) {
 	if (acc.available() < FFT_SIZE) return std::nullopt;
 
 	acc.read(accum_buf.data(), FFT_SIZE);
 
-	for (int i = 0; i < FFT_SIZE; i++)
-		in_buf[i] = accum_buf[i] * window[i];
+	for (int i = 0; i < FFT_SIZE; i++) in_buf[i] = accum_buf[i] * window[i];
 
 	pffft_transform_ordered(setup, in_buf.data(), out_buf.data(), work_buf.data(), PFFFT_FORWARD);
 
@@ -43,18 +41,19 @@ std::optional<SpectrumMsg> FftProcessor::process(FftAccumulator<N> &acc) {
 	//   out[0]        = DC bin (real only)
 	//   out[1]        = Nyquist bin (real only)
 	//   out[2k], out[2k+1] = re, im of bin k  (k = 1 .. N/2-1)
-	const float log_min = std::log10(20.0f);
+	const float log_min = std::log10(60.0f);
 	const float log_max = std::log10(static_cast<float>(Config::SAMPLE_RATE) / 2.0f);
 	const float bin_hz  = static_cast<float>(Config::SAMPLE_RATE) / FFT_SIZE;
 
 	SpectrumMsg msg;
 	for (int b = 0; b < OUT_BINS; b++) {
-		float t    = static_cast<float>(b) / (OUT_BINS - 1);
-		float freq = std::pow(10.0f, log_min + t * (log_max - log_min));
-		int k      = std::clamp(static_cast<int>(freq / bin_hz), 1, BIN_COUNT - 1);
+		float t     = static_cast<float>(b) / (OUT_BINS - 1);
+		float freq  = std::pow(10.0f, log_min + t * (log_max - log_min));
+		int k       = std::clamp(static_cast<int>(freq / bin_hz), 1, BIN_COUNT - 1);
 		msg.bins[b] = bin_to_db(out_buf[2 * k], out_buf[2 * k + 1]);
 	}
 	return msg;
 }
 
-template std::optional<SpectrumMsg> FftProcessor::process<8192>(FftAccumulator<8192> &);
+template std::optional<SpectrumMsg>
+FftProcessor::process<Config::FFT_ACC_SIZE>(FftAccumulator<Config::FFT_ACC_SIZE> &);
