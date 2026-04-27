@@ -7,8 +7,11 @@ void FftProcessor::init() {
 	setup = pffft_new_setup(FFT_SIZE, PFFFT_REAL);
 
 	window.resize(FFT_SIZE);
-	for (int i = 0; i < FFT_SIZE; i++)
-		window[i] = 0.5f * (1.0f - std::cos(2.0f * 3.14159265f * i / (FFT_SIZE - 1)));
+	for (int i = 0; i < FFT_SIZE; i++) {
+		float a0 = 0.35875f, a1 = 0.48829f, a2 = 0.14128f, a3 = 0.01168f;
+		float t   = 2.0f * 3.14159265f * i / (FFT_SIZE - 1);
+		window[i] = a0 - a1 * std::cos(t) + a2 * std::cos(2 * t) - a3 * std::cos(3 * t);
+	}
 
 	in_buf.resize(FFT_SIZE);
 	out_buf.resize(FFT_SIZE);
