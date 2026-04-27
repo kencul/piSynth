@@ -87,8 +87,9 @@ void WebServer::run(int port) {
 		    auto result = self->fft.process(*self->fft_acc);
 		    if (result) self->broadcast_direct(result->serialize());
 	    },
-	    33,
-	    33); // fire every 33ms (~30fps), first fire after 33ms
+	    1000 / Config::UI_UPDATES_PER_SECOND,
+	    1000 / Config::UI_UPDATES_PER_SECOND); // fire every 1000/UI_UPDATES_PER_SECOND ms, first
+	                                           // fire after the same amount of time
 
 	uWS::App()
 	    .get("/",

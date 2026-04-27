@@ -7,6 +7,8 @@ void FftProcessor::init() {
 	setup = pffft_new_setup(FFT_SIZE, PFFFT_REAL);
 
 	window.resize(FFT_SIZE);
+
+	// Blackman-Harris window
 	for (int i = 0; i < FFT_SIZE; i++) {
 		float a0 = 0.35875f, a1 = 0.48829f, a2 = 0.14128f, a3 = 0.01168f;
 		float t   = 2.0f * 3.14159265f * i / (FFT_SIZE - 1);

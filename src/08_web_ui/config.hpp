@@ -50,7 +50,7 @@ inline constexpr float MAX_DECAY_MS = 15000.0f;
 // ----- FFT -------
 inline constexpr int FFT_SIZE     = 4096;
 inline constexpr int FFT_ACC_SIZE = 8192;
-inline constexpr int FFT_OUT_BINS = 4096; // downsampled display bins sent to the UI
+inline constexpr int FFT_OUT_BINS = 512; // downsampled display bins sent to the UI
 
 // ----- Effects -------
 
@@ -80,4 +80,8 @@ inline constexpr float PING_PONG_FEEDBACK_CUTOFF_HZ = 6000.0f;
 // Reverb
 inline constexpr float REVERB_MIN_CUTOFF_HZ = 1000.0f;
 inline constexpr float REVERB_MAX_CUTOFF_HZ = 10000.0f;
+
+// ------- Web UI -------
+
+inline constexpr int UI_UPDATES_PER_SECOND = 45;
 } // namespace Config

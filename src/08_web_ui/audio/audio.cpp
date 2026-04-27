@@ -47,7 +47,7 @@ bool AudioEngine::configure_device() {
 
 	Config::SAMPLE_RATE = sample_rate;
 
-	meter_interval = static_cast<int>(sample_rate / period_size / 30);
+	meter_interval = static_cast<int>(sample_rate / period_size / Config::UI_UPDATES_PER_SECOND);
 	if (meter_interval < 1) meter_interval = 1;
 
 	std::cout << "AudioEngine: rate=" << sample_rate << " period=" << period_size
