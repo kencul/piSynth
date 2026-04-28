@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pluck Synth</title>
+<style>
+/* ── Base & Layout ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Courier New', monospace; background: #111; color: #aaa;
+  display: flex; flex-direction: column; height: 100vh; overflow: hidden;
+}
+header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 16px; border-bottom: 1px solid #1c1c1c; background: #0d0d0d;
+}
+header h1 { font-size: clamp(16px, 2vw, 24px); letter-spacing: 3px; text-transform: uppercase; color: #fff; font-weight: normal; }
+#status { font-size: clamp(12px, 1.2vw, 14px); font-weight: bold; }
+#status.connected { color: #33aa55; } #status.disconnected { color: #883333; }
+
+/* ── String Visualizer ── */
+#string-panel {
+  width: 100%; height: 120px; background: #0d0d0d;
+  border-bottom: 1px solid #1c1c1c; flex-shrink: 0;
+}
+#string-canvas { display: block; width: 100%; height: 100%; }
+
+main { display: flex; flex: 1; overflow: hidden; }
+
+/* ── Meter ── */
+#meter-panel {
+  display: flex; flex-direction: column; align-items: center; padding: 14px 10px 10px;
+  border-right: 1px solid #1c1c1c; background: #0d0d0d; width: clamp(100px, 12vw, 150px); 
+}
+#meter-title { font-size: 13px; color: #fff; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px; font-weight: bold; }
+#meter { width: 100%; height: 100%; flex: 1; }
+
+/* ── Params Panel ── */
+#params-panel { flex: 1; overflow-y: auto; padding: 30px; display: flex; flex-wrap: wrap; gap: 25px; align-content: flex-start; }
+#params-panel::-webkit-scrollbar { width: 4px; }
+#params-panel::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+
+.param-group {
+  border: 1px solid #333; border-radius: 8px; padding: 20px; background: #181818;
+  display: flex; flex-direction: column; width: fit-content; box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+}
+.param-group h2 { font-size: clamp(13px, 1.3vw, 16px); color: #fff; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 15px; border-bottom: 2px solid #333; padding-bottom: 8px; font-weight: bold; }
+.group-grid { display: flex; gap: 20px; }
+.orphan-container { display: flex; gap: 20px; padding-top: 35px; }
+
+/* ── Knobs ── */
+.knob { display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: ns-resize; user-select: none; width: clamp(80px, 10vw, 120px); }
+.knob canvas { display: block; width: 100%; aspect-ratio: 1; }
+.knob-label { font-size: 12px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; text-align: center; font-weight: bold; }
+.knob-val { font-size: 11px; color: #55aaff; white-space: nowrap; font-family: monospace; }
+</style>
+</head>
+
+<body>
+<header>
+  <h1>Pluck Synth</h1>
+  <span id="status" class="connecting">Connecting&hellip;</span>
+</header>
+<div id="string-panel"><canvas id="string-canvas"></canvas></div>
+<main>
+  <div id="meter-panel"><span id="meter-title">Level</span><canvas id="meter"></canvas></div>
+  <div id="params-panel"></div>
+</main>
+
+<script>
+'use strict';
+
+// ── Constants & Utilities ──
+const $ = id => document.getElementById(id);
+const dpr = () => window.devicePixelRatio || 1;
+const lin2db = v => v < 1e-7 ? -60 : 20 * Math.log10(v);
+const fmtVal = (v, u) => `${+(v.toFixed(v>=1000?0:v>=100?1:v>=10?2:3))}${u ? ' '+u : ''}`;
+
+const MIN_DB = -60, PEAK_HOLD_MS = 1800, PEAK_FALL_RATE = 10; 
+const DB_TICKS = [0, -3, -6, -12, -18, -24, -36, -48, -60];
+const PI = Math.PI, K_START = 120 * PI/180, K_END = 60 * PI/180, K_SWEEP = 300 * PI/180;
+
+const GROUPS = {
+  'Waveguide': ['decay', 'pluck pos', 'pickup pos'], 'Envelope': ['attack', 'release'],
+  'Filter': ['filter cutoff', 'res'], 'Chorus': ['chorus'], 'Reverb': ['reverb'], 'Delay': ['delay']
+};
+
+const ZONES = [
+  { top: 0, bot: -3, lit: '#ff3333', dim: '#220000' },
+  { top: -3, bot: -12, lit: '#ffaa00', dim: '#221100' },
+  { top: -12, bot: MIN_DB, lit: '#33ff77', dim: '#002200' },
+];
+
+let SPEC_SR   = 48000;  // fallback until config message arrives
+let SPEC_BINS = 256;
+const SPEC_MIN_HZ = 60;
+const SPEC_MAX_HZ = 20000;
+
+let smoothedBins = null;
+const SMOOTHING = 0.1;
+
+// ── State ──
+const meter = { rms: [0,0], peakHeld: [-60,-60], peakFall: [-60,-60], holdEnd: [0,0] };
+const knobs = {};
+let prevT = 0;
+
+const pPanel = $('params-panel'), mCanvas = $('meter'), mCtx = mCanvas.getContext('2d');
+const sCanvas = $('string-canvas'), sCtx = sCanvas.getContext('2d');
+
+// ── Waveguide State ──
+const wgState = { displacement: new Float32Array(256), fret_pos: 0, pickup_pos: 0.1, active: false };
+
+// ── Spectrogram State ──
+let sgCanvas = null, sgCtx = null;
+const dbToColor = db => {
+  const t = Math.max(0, Math.min(1, (db + 80) / 80));
+  return `hsl(${240 * (1 - t)},100%,${15 + t * 55}%)`;
+};
+const initSg = (w, h) => {
+  sgCanvas = new OffscreenCanvas(w, h);
+  sgCtx = sgCanvas.getContext('2d');
+  sgCtx.fillStyle = '#0a0a0a';
+  sgCtx.fillRect(0, 0, w, h);
+};
+
+// ── Initialization & Layout ──
+const getGroupContainer = name => {
+  const groupMatch = Object.entries(GROUPS).find(([, kws]) => kws.some(kw => name.toLowerCase().includes(kw)));
+  const gName = groupMatch ? groupMatch[0] : 'orphans';
+  let el = $(`group-${gName}`);
+  if (!el) {
+    el = document.createElement('div');
+    el.id = `group-${gName}`;
+    el.className = gName === 'orphans' ? 'orphan-container' : 'param-group';
+    el.innerHTML = gName === 'orphans' ? '' : `<h2>${gName}</h2><div class="group-grid"></div>`;
+    pPanel.appendChild(el);
+  }
+  return gName === 'orphans' ? el : el.querySelector('.group-grid');
+};
+
+const handleResize = () => {
+  mCanvas.width = mCanvas.clientWidth * dpr(); mCanvas.height = mCanvas.clientHeight * dpr();
+  sCanvas.width = sCanvas.clientWidth * dpr(); sCanvas.height = sCanvas.clientHeight * dpr();
+  initSg(Math.floor(sCanvas.width / 2), sCanvas.height);
+  Object.values(knobs).forEach(k => {
+    k.cvs.width = k.cvs.clientWidth * dpr(); k.cvs.height = k.cvs.clientHeight * dpr();
+    drawKnob(k.cvs, k.val);
+  });
+};
+window.addEventListener('resize', handleResize);
+
+// ── Graphics / Drawing ──
+const drawKnob = (cvs, val) => {
+  const ctx = cvs.getContext('2d'), w = cvs.width, h = cvs.height, d = dpr();
+  ctx.clearRect(0, 0, w, h);
+  const cx = w/2, cy = h/2, r = w * 0.35;
+  const valA = K_START + (K_SWEEP * val);
+
+  ctx.beginPath(); ctx.arc(cx, cy, r, K_START, K_END, false);
+  ctx.strokeStyle = '#333'; ctx.lineWidth = 6*d; ctx.lineCap = 'round'; ctx.stroke();
+  
+  ctx.beginPath(); ctx.arc(cx, cy, r, K_START, valA, false);
+  ctx.strokeStyle = '#4488ff'; ctx.lineWidth = 6*d; ctx.lineCap = 'round'; ctx.stroke();
+
+  const indA = K_START + (K_SWEEP * val);
+  ctx.beginPath();
+  ctx.moveTo(cx + Math.cos(indA)*r*0.4, cy + Math.sin(indA)*r*0.4);
+  ctx.lineTo(cx + Math.cos(indA)*r, cy + Math.sin(indA)*r);
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 3*d; ctx.lineCap = 'round'; ctx.stroke();
+};
+
+const drawString = () => {
+  const w = sCanvas.width, h = sCanvas.height, d = dpr();
+  if (!w || !h) return;
+  sCtx.clearRect(0, 0, w, h);
+
+  const halfW = Math.floor(w / 2);
+  const cy = h / 2;
+  const POINTS = 256, HALF = POINTS / 2;
+
+  // — Left half: string, always resampled to fill halfW —
+  let mean = 0;
+  for (let i = 0; i < HALF; i++)
+    mean += wgState.displacement[i] + wgState.displacement[POINTS - 1 - i];
+  mean /= HALF;
+
+  sCtx.beginPath();
+  for (let i = 0; i < HALF; i++) {
+    const x = i * halfW / (HALF - 1);
+    const y = cy - (wgState.displacement[i] + wgState.displacement[POINTS - 1 - i] - mean) * h;
+    i === 0 ? sCtx.moveTo(x, y) : sCtx.lineTo(x, y);
+  }
+  sCtx.strokeStyle = wgState.active ? '#55aaff' : '#2a4466';
+  sCtx.lineWidth = 1.5 * d;
+  sCtx.lineJoin = 'round';
+  sCtx.stroke();
+
+  // Pickup marker
+  if (wgState.active) {
+    const pickupX = wgState.pickup_pos * halfW;
+    sCtx.beginPath();
+    sCtx.moveTo(pickupX, cy - h * 0.18);
+    sCtx.lineTo(pickupX, cy + h * 0.18);
+    sCtx.strokeStyle = '#ffaa33';
+    sCtx.lineWidth = 2 * d;
+    sCtx.stroke();
+  }
+
+  // — Divider —
+  sCtx.beginPath();
+  sCtx.moveTo(halfW + 0.5, 0);
+  sCtx.lineTo(halfW + 0.5, h);
+  sCtx.strokeStyle = '#1c1c1c';
+  sCtx.lineWidth = 1;
+  sCtx.stroke();
+
+  // — Right half: spectrogram waterfall —
+  if (sgCanvas) {
+    sCtx.drawImage(sgCanvas, halfW, 0);
+  } else {
+    sCtx.fillStyle = '#0a0a0a';
+    sCtx.fillRect(halfW, 0, halfW, h);
+  }
+};
+
+const draw = now => {
+  requestAnimationFrame(draw);
+  drawString();
+  const dt = Math.min((now - prevT) / 1000, 0.1); prevT = now;
+  const w = mCanvas.width, h = mCanvas.height, d = dpr();
+  if (!w || !h) return;
+  mCtx.clearRect(0, 0, w, h);
+  
+  // Proportions
+  const sc = w / 100;
+  const L_W = 35 * sc, T_W = 8 * sc, T_G = 4 * sc, B_W = 20 * sc, C_G = 10 * sc;
+  const B_X_L = L_W + T_W + T_G;
+  const B_X_R = B_X_L + B_W + C_G;
+
+  const T_PAD = 25 * d, B_PAD = 40 * d, B_H = h - T_PAD - B_PAD;
+  const yDb = db => Math.round(T_PAD + B_H * (1 - (Math.max(MIN_DB, Math.min(0, db)) - MIN_DB) / -MIN_DB));
+
+  // Background
+  mCtx.fillStyle = '#161616';
+  mCtx.fillRect(B_X_L, T_PAD, B_W, B_H);
+  mCtx.fillRect(B_X_R, T_PAD, B_W, B_H);
+
+  // Labels & Ticks
+  mCtx.font = `bold ${Math.max(10*d, 11*sc)}px monospace`;
+  mCtx.textAlign = 'right'; mCtx.textBaseline = 'middle';
+  
+  DB_TICKS.forEach(db => {
+    const y = yDb(db);
+    mCtx.fillStyle = '#444'; 
+    mCtx.fillRect(L_W + 2*sc, y - 0.5*d, T_W, 1.5*d);
+    
+    if (db !== -3) {
+      mCtx.fillStyle = '#fff';
+      mCtx.fillText(db, L_W, y);
+    }
+  });
+
+  mCtx.fillStyle = '#888'; mCtx.textBaseline = 'bottom';
+  mCtx.fillText('dB', L_W, T_PAD - 10*d);
+
+  const barBot = T_PAD + B_H;
+  for (let ch = 0; ch < 2; ch++) {
+    if (now > meter.holdEnd[ch]) {
+      meter.peakFall[ch] = Math.max(MIN_DB, meter.peakFall[ch] - PEAK_FALL_RATE * dt);
+      meter.peakHeld[ch] = meter.peakFall[ch];
+    }
+    
+    const x = ch === 0 ? B_X_L : B_X_R, lY = yDb(lin2db(meter.rms[ch]));
+    ZONES.forEach(z => {
+      const zT = yDb(z.top), zB = yDb(z.bot);
+      const lT = Math.max(lY, zT), lB = Math.min(barBot, zB);
+      if (lT < lB) { mCtx.fillStyle = z.lit; mCtx.fillRect(x, lT, B_W, lB - lT); }
+      const dT = Math.max(T_PAD, zT), dB = Math.min(lY, zB);
+      if (dT < dB) { mCtx.fillStyle = z.dim; mCtx.fillRect(x, dT, B_W, dB - dT); }
+    });
+    
+    if (meter.peakHeld[ch] > MIN_DB) {
+      const py = yDb(meter.peakHeld[ch]);
+      mCtx.fillStyle = '#fff';
+      mCtx.fillRect(x, py - 1*d, B_W, 2.5*d);
+    }
+  }
+
+  mCtx.fillStyle = '#fff'; mCtx.textAlign = 'center'; mCtx.textBaseline = 'top';
+  mCtx.fillText('L', B_X_L + B_W/2, barBot + 10*d);
+  mCtx.fillText('R', B_X_R + B_W/2, barBot + 10*d);
+};
+
+// ── Network / WebSocket ──
+const ws = new WebSocket(`ws://${location.host}/ws`);
+const statusEl = $('status');
+ws.onopen = () => { statusEl.textContent = 'Connected'; statusEl.className = 'connected'; };
+ws.onclose = () => { statusEl.textContent = 'Disconnected'; statusEl.className = 'disconnected'; };
+
+ws.onmessage = ({ data }) => {
+  const msg = JSON.parse(data);
+  if (msg.type === 'meter') {
+    meter.rms = [msg.rms_l, msg.rms_r];
+    [lin2db(msg.peak_l), lin2db(msg.peak_r)].forEach((pk, ch) => {
+      if (pk > meter.peakHeld[ch]) {
+        meter.peakHeld[ch] = meter.peakFall[ch] = pk;
+        meter.holdEnd[ch] = performance.now() + PEAK_HOLD_MS;
+      }
+    });
+  } else if (msg.type === 'waveguide') {
+    wgState.active     = !!msg.active;
+    wgState.fret_pos   = msg.fret_pos;
+    wgState.pickup_pos = msg.pickup_pos;
+    const src = msg.displacement;
+    for (let i = 0; i < 256; i++) wgState.displacement[i] = src[i];
+  } else if (msg.type === 'spectrum') {
+    if (!sgCanvas) return;
+    const bins = msg.bins;
+    const sw = sgCanvas.width;
+    const sh = sgCanvas.height;
+
+    // Initialize or update the persistent buffer for temporal averaging
+    if (!smoothedBins || smoothedBins.length !== bins.length) {
+      smoothedBins = new Float32Array(bins.length).fill(-80);
+    }
+    for (let i = 0; i < bins.length; i++) {
+      smoothedBins[i] = (smoothedBins[i] * SMOOTHING) + (bins[i] * (1 - SMOOTHING));
+    }
+
+    sgCtx.fillStyle = '#0a0a0a';
+    sgCtx.fillRect(0, 0, sw, sh);
+    
+    sgCtx.beginPath();
+    sgCtx.moveTo(0, sh);
+
+    // Use a step to sample points for the curve to avoid jagged edges
+    const step = 4; 
+    const points = [];
+
+    for (let px = 0; px <= sw; px += step) {
+      const t = px / sw;
+      // Map t=0 to MIN and t=1 to MAX for Left->Right frequency orientation
+      const hz = SPEC_MIN_HZ * Math.pow(SPEC_MAX_HZ / SPEC_MIN_HZ, t);
+      const binIdx = hz * SPEC_BINS / (SPEC_SR / 2);
+      
+      // Bilinear interpolation between bins ensures smooth frequency transitions
+      const i0 = Math.max(0, Math.min(SPEC_BINS - 1, Math.floor(binIdx)));
+      const i1 = Math.max(0, Math.min(SPEC_BINS - 1, i0 + 1));
+      const fract = binIdx - i0;
+      const db = smoothedBins[i0] * (1 - fract) + smoothedBins[i1] * fract;
+
+      // Normalizing -80dB to 0dB range for the canvas height
+      const y = sh - Math.max(0, Math.min(sh, (db + 80) / 80 * sh));
+      points.push({x: px, y: y});
+    }
+
+    // Draw smooth curves through the midpoints of the sampled data
+    if (points.length > 0) {
+      sgCtx.lineTo(points[0].x, points[0].y);
+      for (let i = 1; i < points.length - 1; i++) {
+        const xc = (points[i].x + points[i + 1].x) / 2;
+        const yc = (points[i].y + points[i + 1].y) / 2;
+        sgCtx.quadraticCurveTo(points[i].x, points[i].y, xc, yc);
+      }
+      sgCtx.lineTo(sw, points[points.length - 1].y);
+    }
+
+    // Close the path at the bottom for a solid fill
+    sgCtx.lineTo(sw, sh);
+    sgCtx.lineTo(0, sh);
+    sgCtx.closePath();
+
+    // Simple semi-transparent UI blue fill
+    sgCtx.fillStyle = 'rgba(85, 170, 255, 0.2)';
+    sgCtx.fill();
+    
+    sgCtx.strokeStyle = '#55aaff';
+    sgCtx.lineWidth = 2;
+    sgCtx.lineJoin = 'round';
+    sgCtx.stroke();
+  } else if (msg.type === 'param') {
+    let k = knobs[msg.id];
+    if (!k) {
+      const div = document.createElement('div'); div.className = 'knob';
+      div.innerHTML = `<canvas></canvas><div class="knob-label">${msg.name}</div><div class="knob-val"></div>`;
+      getGroupContainer(msg.name).appendChild(div);
+      k = knobs[msg.id] = { cvs: div.querySelector('canvas'), el: div.querySelector('.knob-val'), val: msg.normalized };
+      k.cvs.width = k.cvs.clientWidth * dpr(); k.cvs.height = k.cvs.clientWidth * dpr();
+      let dV = 0, dY = 0;
+      div.onpointerdown = e => { div.setPointerCapture(e.pointerId); dY = e.clientY; dV = k.val; e.preventDefault(); };
+      div.onpointermove = e => {
+        if (!div.hasPointerCapture(e.pointerId)) return;
+        k.val = Math.min(1, Math.max(0, dV + (dY - e.clientY)/200));
+        drawKnob(k.cvs, k.val);
+        ws.send(JSON.stringify({ type: 'set_param', id: msg.id, value: k.val }));
+      };
+    }
+    k.val = msg.normalized;
+    k.el.textContent = fmtVal(msg.value, msg.unit);
+    drawKnob(k.cvs, k.val);
+  } else if (msg.type === 'config') {
+    SPEC_SR   = msg.sample_rate;
+    SPEC_BINS = msg.spectrum_bins;
+  }
+};
+
+requestAnimationFrame(draw);
+setTimeout(handleResize, 150);
+</script>
+</body>
+</html>
