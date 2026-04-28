@@ -25,7 +25,7 @@ int main() {
 	WebServer web(params, dispatcher);
 
 	if (!audio.open(Config::AUDIO_DEVICE)) return 1;
-	if (!midi.open(Config::MIDI_DEVICES)) return 1;
+	if (!midi.open()) return 1;
 
 	// audio thread -> web: meter data at ~30fps
 	audio.on_meter = [&web](float rl, float rr, float pl, float pr) {

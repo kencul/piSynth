@@ -13,7 +13,7 @@ public:
 	explicit MidiReader(RingBuffer<NoteEvent, 64> &event_queue, SynthParams &params);
 	~MidiReader();
 
-	bool open(std::initializer_list<const char *> device_names);
+	bool open(std::initializer_list<const char *> device_names = {});
 	void start();
 	void stop();
 
@@ -24,7 +24,7 @@ public:
 private:
 	void midi_loop();
 	void handle_event(snd_seq_event_t *ev);
-	int find_client(const char *search);
+	bool connect_all_inputs();
 
 	static std::string note_name(int note);
 

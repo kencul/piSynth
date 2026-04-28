@@ -28,19 +28,12 @@ bool MidiReader::open(std::initializer_list<const char *> device_names) {
 		return false;
 	}
 
-	bool any_connected = false;
-	for (const char *name : device_names) {
-		int client = find_client(name);
-		if (client < 0) {
-			std::cerr << "MidiReader: could not find device: " << name << "\n";
-			continue;
-		}
-		snd_seq_connect_from(seq, in_port, client, 0);
-		std::cout << "MidiReader: connected to " << name << " (client " << client << ":0)\n";
-		any_connected = true;
-	}
+	// Subscribe to system announcements
+	snd_seq_connect_from(seq, in_port, SND_SEQ_CLIENT_SYSTEM, SND_SEQ_PORT_SYSTEM_ANNOUNCE);
 
-	return any_connected;
+	connect_all_inputs();
+
+	return true;
 }
 
 void MidiReader::start() {
@@ -120,23 +113,71 @@ void MidiReader::handle_event(snd_seq_event_t *ev) {
 			break;
 		}
 
+		case SND_SEQ_EVENT_PORT_START:
+			// A new port available
+			std::cout << "MidiReader: New MIDI port detected. Re-scanning...\n";
+			connect_all_inputs();
+			break;
+
+		case SND_SEQ_EVENT_CLIENT_EXIT:
+			// A device was removed.
+			// ALSA kills the connection automatically
+			std::cout << "MidiReader: Device disconnected.\n";
+			break;
+
 		default: break;
 	}
-}
-
-int MidiReader::find_client(const char *search) {
-	snd_seq_client_info_t *info;
-	snd_seq_client_info_alloca(&info);
-	snd_seq_client_info_set_client(info, -1);
-
-	while (snd_seq_query_next_client(seq, info) >= 0) {
-		const char *name = snd_seq_client_info_get_name(info);
-		if (strstr(name, search)) return snd_seq_client_info_get_client(info);
-	}
-	return -1;
 }
 
 std::string MidiReader::note_name(int note) {
 	static const char *names[] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
 	return std::string(names[note % 12]) + std::to_string((note / 12) - 1);
+}
+
+bool MidiReader::connect_all_inputs() {
+	snd_seq_client_info_t *c_info;
+	snd_seq_port_info_t *p_info;
+
+	snd_seq_client_info_alloca(&c_info);
+	snd_seq_port_info_alloca(&p_info);
+	snd_seq_client_info_set_client(c_info, -1);
+
+	int my_client_id = snd_seq_client_id(seq);
+
+	while (snd_seq_query_next_client(seq, c_info) >= 0) {
+		int client_id = snd_seq_client_info_get_client(c_info);
+
+		// Skip itself to avoid infinite loops
+		if (client_id == my_client_id) continue;
+
+		// Skip System and Midi Through
+		std::string name = snd_seq_client_info_get_name(c_info);
+		if (name == "System" || name == "Midi Through") continue;
+
+		// Look at all ports on this client
+		snd_seq_port_info_set_client(p_info, client_id);
+		snd_seq_port_info_set_port(p_info, -1);
+
+		while (snd_seq_query_next_port(seq, p_info) >= 0) {
+			unsigned int caps = snd_seq_port_info_get_capability(p_info);
+
+			// Check if the port allows "READ" and "SUBS_READ"
+			if ((caps & SND_SEQ_PORT_CAP_READ) && (caps & SND_SEQ_PORT_CAP_SUBS_READ)) {
+				int port_id = snd_seq_port_info_get_port(p_info);
+
+				int err = snd_seq_connect_from(seq, in_port, client_id, port_id);
+
+				if (err == 0) {
+					std::cout << "Auto-connected: " << name << " [" << client_id << ":" << port_id
+					          << "]\n";
+				} else if (err == -EEXIST || err == -EBUSY) {
+					// Already connected
+				} else {
+					std::cerr << "Failed to connect to " << name << ": " << snd_strerror(err)
+					          << "\n";
+				}
+			}
+		}
+	}
+	return true;
 }

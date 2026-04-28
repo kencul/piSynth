@@ -7,7 +7,7 @@ list(FILTER USOCKETS_SOURCES EXCLUDE REGEX ".*openssl.*")
 list(FILTER USOCKETS_SOURCES EXCLUDE REGEX ".*wolfssl.*")
 list(FILTER USOCKETS_SOURCES EXCLUDE REGEX ".*boringssl.*")
 
-add_library(uSockets STATIC ${USOCKETS_SOURCES})
+# add_library(uSockets STATIC ${USOCKETS_SOURCES})
 target_include_directories(uSockets PUBLIC
     ${CMAKE_SOURCE_DIR}/deps/uWebSockets/uSockets/src
     ${CMAKE_SOURCE_DIR}/deps/pffft/include/pffft
@@ -17,9 +17,7 @@ target_compile_definitions(uSockets PUBLIC
     UWS_NO_ZLIB=1
 )
 
-add_subdirectory(${CMAKE_SOURCE_DIR}/deps/pffft ${CMAKE_BINARY_DIR}/deps/pffft)
-
-add_executable(08_web_ui
+add_executable(09_plug_and_play
     main.cpp
     osc/osc.cpp
     midi/midi.cpp
@@ -43,23 +41,23 @@ add_executable(08_web_ui
     web/web_server.cpp
 )
 
-target_compile_definitions(08_web_ui PRIVATE
+target_compile_definitions(09_plug_and_play PRIVATE
     HTML_PATH="${CMAKE_CURRENT_SOURCE_DIR}/web/index.html"
 )
 
-target_include_directories(08_web_ui PRIVATE
+target_include_directories(09_plug_and_play PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/deps/uWebSockets/src
 )
 
-target_link_libraries(08_web_ui PRIVATE
+target_link_libraries(09_plug_and_play PRIVATE
     ALSA::ALSA
     atomic
     uSockets
     PFFFT::PFFFT
 )
 
-add_custom_command(TARGET 08_web_ui POST_BUILD
-    COMMAND sudo setcap cap_sys_nice+ep $<TARGET_FILE:08_web_ui>
+add_custom_command(TARGET 09_plug_and_play POST_BUILD
+    COMMAND sudo setcap cap_sys_nice+ep $<TARGET_FILE:09_plug_and_play>
     COMMENT "Granting realtime scheduling capability"
 )

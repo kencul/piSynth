@@ -17,8 +17,6 @@ target_compile_definitions(uSockets PUBLIC
     UWS_NO_ZLIB=1
 )
 
-add_subdirectory(${CMAKE_SOURCE_DIR}/deps/pffft ${CMAKE_BINARY_DIR}/deps/pffft)
-
 add_executable(08_web_ui
     main.cpp
     osc/osc.cpp
