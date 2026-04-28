@@ -1,5 +1,5 @@
-# 07 Pluck Synth Effects
-A polyphonic pluck-string waveguide synthesizer with a per-voice Zero Delay SVF filter and a master effects bus including Chorus, Reverb, and Ping Pong Delay.
+# 08 Web UI
+A polyphonic pluck-string waveguide synthesizer with a browser-based control and visualization interface, built on top of the 07 synth engine.
 
 ## Usage
 Build and run:
@@ -7,10 +7,10 @@ Build and run:
 cd build
 cmake ..
 ninja
-./bin/07_pluck_synth_effects
+./bin/08_web_ui
 ```
 
-Launching will open the audio device and read MIDI controller based on values in `config.hpp`. This version supports multiple MIDI devices simultaneously to accommodate more physical controllers.
+Launching will open the audio device, read MIDI controllers, and start a web server. To find the URL, run `hostname` in the Pi console — then open `http://<hostname>.local:<UI_PORT>` in a browser on the same network. The page is served with no-cache headers so the browser always loads the latest version.
 
 To change the audio device or the MIDI sources, edit `config.hpp`:
 ```cpp
@@ -21,23 +21,25 @@ inline constexpr std::initializer_list<const char *> MIDI_DEVICES = {
 };
 ```
 
-Adjust the master effects settings and voice parameters in `config.hpp`:
+Adjust voice parameters, effects settings, and web UI refresh rate in `config.hpp`:
 ```cpp
-inline constexpr int   MAX_VOICES   = 8;
-inline constexpr float KILL_MS      = 1.5f;     // ms: voice steal fade time
-inline constexpr float FILTER_KEYTRACK = 0.8f;  // 0.0-2.0 cutoff tracking
+inline constexpr int   MAX_VOICES             = 8;
+inline constexpr float KILL_MS                = 1.5f;    // ms: voice steal fade time
+inline constexpr float FILTER_KEYTRACK        = 0.8f;    // 0.0-2.0 cutoff tracking
+inline constexpr int   UI_UPDATES_PER_SECOND  = 45;      // visualization refresh rate
+inline constexpr int   UI_PORT                = 9002;    // web server port
+inline constexpr int   FFT_SIZE               = 4096;    // FFT window size
+inline constexpr int   FFT_OUT_BINS           = 512;     // downsampled bins sent to UI
 ```
 
-## New Effects & Controls
-Program 07 introduces a restructured processing chain. Each voice now contains its own **Zero Delay State Variable Filter (SVF)**, while global effects are processed on a dedicated **Master Bus**.
+## New in Program 08
+Program 08 adds a **Web UI layer** on top of the 07 synth engine. A dedicated web thread runs a `uWebSockets` event loop that serves a browser interface, visualizes audio in real time, and accepts parameter control via sliders — all without touching the audio thread.
 
-### Per-Voice Filter
-* **SVF Filter**: A stable, accurate filter implemented for each voice. It includes **Keytracking**, which scales the cutoff frequency based on the note pitch so that different octaves maintain consistent timbre.
-
-### Master Bus Effects
-* **Chorus**: A stereo effect using dual LFO-modulated delay lines. The left and right channels use different modulation rates and base delay offsets to create maximum stereo width.
-* **Freeverb**: A lush reverb implementation using 8 parallel comb filters followed by 4 serial allpass filters. It provides controls for room size, damping (cutoff), and dry/wet mix.
-* **Ping Pong Delay**: A stereo delay where reflections bounce between the left and right channels. It features per-sample delay time smoothing to create smooth pitch-shifting "Doppler" effects when adjusted.
+### Browser Interface
+* **Parameter sliders**: All synth parameters are exposed as sliders in the browser. Changes are broadcast to all connected clients so multiple open tabs stay in sync.
+* **RMS Meter**: Stereo RMS and peak meter updated at `UI_UPDATES_PER_SECOND`.
+* **Waveguide Display**: The state of the digital waveguide string is sampled and resampled to 128 points for a consistent visualization. Shows the effect of pluck position and pickup position parameters in real time.
+* **Spectrum Analyzer**: An EQ-style spectrum using a 4096-sample Blackman-Harris windowed FFT, log-scaled and downsampled to `FFT_OUT_BINS` bins before sending.
 
 ## CC Parameter Control
 Parameters are controlled via MIDI CC messages. Per-sample and per-block **Parameter Smoothing** has been implemented for all CC inputs to eliminate "zipper noise" and clicks during real-time adjustment.
@@ -78,6 +80,7 @@ The system continues to target the **Apple USB-C dongle** with the following har
 main()
 ├── creates RingBuffer<NoteEvent, 64>
 ├── creates SynthParams (initializes CC mappings and default values)
+├── creates MsgDispatcher (routes inbound WebSocket messages by type)
 ├── creates AudioEngine(event_queue, params)
 │     └── creates VoiceManager(params)
 │           ├── creates Voice[8]
@@ -89,10 +92,20 @@ main()
 │                 ├── Freeverb  (Comb/Allpass reverb)
 │                 └── PingPong  (Cross-feedback delay)
 ├── creates MidiReader(event_queue, params)
+├── creates WebServer(params, dispatcher)
+│     ├── loads index.html into memory
+│     └── owns FftProcessor (Blackman-Harris FFT wrapper)
 ├── audio.open()  → configures ALSA PCM (S16_LE, 48000Hz)
 ├── midi.open()   → connects to multiple devices in config.hpp
+├── wire callbacks
+│     ├── audio.on_meter    → web.broadcast(MeterMsg)
+│     ├── audio.on_waveguide → web.broadcast(WaveguideMsg)
+│     ├── midi.on_param_change → web.broadcast(ParamMsg)
+│     └── dispatcher.on("set_param") → params.set_param() + web.broadcast(ParamMsg)
+├── web.set_fft_acc(&audio.get_fft_acc())
 ├── audio.start() → launches high-priority audio thread
-└── midi.start()  → launches MIDI polling thread
+├── midi.start()  → launches MIDI polling thread
+└── web.start(Config::UI_PORT) → launches web thread (uWS event loop)
 ```
 
 ## Realtime Data Flow
@@ -115,6 +128,8 @@ handle_event()
                            → normalize 0–127 to 0.0–1.0
                            → apply scaling (Log/Exp/Linear)
                            → store in Atomic float array
+                           → on_param_change() callback
+                                → loop->defer(ParamMsg) → WEB THREAD
         ↓
 RingBuffer<NoteEvent, 64>   ← MIDI thread writes here
         ↓                      audio thread reads here
@@ -145,6 +160,43 @@ AUDIO THREAD (AudioEngine processing)
    a. Soft Clip → tanh(mix * DRIVE) / DRIVE (Bus limiting)
    b. Scale     → Convert float to S16_LE (INT16_MAX)
    c. ALSA      → snd_pcm_writei() to hardware DMA
+
+5. VISUALIZATION CALLBACKS (every meter_interval blocks)
+   a. Accumulate RMS/peak per sample across the period
+   b. on_meter()     → loop->defer(MeterMsg)    → WEB THREAD
+   c. Pluck::snapshot() → resample to 128 pts
+      on_waveguide() → loop->defer(WaveguideMsg) → WEB THREAD
+   d. fft_acc.write(mono sample) per sample
+      (FFT is read and processed by the web thread on its timer)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+WEB THREAD (WebServer::run, uWS event loop)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+INBOUND (Browser → Synth)
+  Browser JS sends JSON over WebSocket
+        ↓
+  .message handler → MsgDispatcher::dispatch(msg)
+        → reads "type" field (expected first key)
+        → routes to registered handler, e.g. "set_param"
+              → MsgParser::extract_int/float → params.set_param()
+              → loop->defer(ParamMsg) → broadcast to all clients
+
+OUTBOUND (Synth → Browser)
+  loop->defer() callbacks queued by audio/MIDI threads execute here
+        ↓
+  broadcast_direct() → serializes struct to JSON → sends to all WS clients
+
+  us_timer fires every (1000 / UI_UPDATES_PER_SECOND) ms
+        ↓
+  FftProcessor::process(fft_acc) → Blackman-Harris window → real FFT
+        → magnitude conversion → log frequency scaling
+        → downsample to FFT_OUT_BINS
+        → broadcast_direct(SpectrumMsg)
+
+  On new client connect (.open):
+        → send_initial_state(ws)
+              → ConfigMsg (sample_rate, spectrum_bins)
+              → ParamMsg for every parameter (syncs sliders to current state)
 ```
 
 ## Code Breakdown

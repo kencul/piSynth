@@ -4,7 +4,6 @@
 #include <string_view>
 
 // Simple key extraction for flat JSON objects.
-// Allocates a small needle string -- only used on the web thread, not RT.
 namespace MsgParser {
 
 inline auto make_needle(std::string_view key) {

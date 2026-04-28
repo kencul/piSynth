@@ -64,7 +64,7 @@ int main() {
 
 	audio.start();
 	midi.start();
-	web.start(9002);
+	web.start(Config::UI_PORT);
 
 	std::cout << "Synth running. Press Ctrl+C to quit.\n";
 	while (!should_quit.load()) pause();

@@ -84,4 +84,5 @@ inline constexpr float REVERB_MAX_CUTOFF_HZ = 10000.0f;
 // ------- Web UI -------
 
 inline constexpr int UI_UPDATES_PER_SECOND = 45;
+inline constexpr int UI_PORT               = 9002;
 } // namespace Config
