@@ -117,12 +117,21 @@ void AudioEngine::audio_loop() {
 		}
 
 		for (int i = 0; i < static_cast<int>(period_size); ++i) {
-			buf[i * channels + 0] =
-			    static_cast<int16_t>(std::clamp(mix_l[i], -1.0f, 1.0f) * Config::SAMPLE_SCALE);
-			buf[i * channels + 1] =
-			    static_cast<int16_t>(std::clamp(mix_r[i], -1.0f, 1.0f) * Config::SAMPLE_SCALE);
+			// Apply TPDF dithering and convert to int16
+			// Scale by 1/4 of int16 to get half of LSB with rng with a width of 2 (x2 from RNG, to
+			// get 0.5 from 2, divide by 4)
+			float dither_scale = 0.25f / static_cast<float>(Config::SAMPLE_SCALE);
+			float l_noise      = (distribution(generator) + distribution(generator)) * dither_scale;
+			float r_noise      = (distribution(generator) + distribution(generator)) * dither_scale;
+			float l_dithered   = mix_l[i] + (l_noise);
+			float r_dithered   = mix_r[i] + (r_noise);
 
-			fft_acc.write((mix_l[i] + mix_r[i]) * 0.5f);
+			buf[i * channels + 0] =
+			    static_cast<int16_t>(std::clamp(l_dithered, -1.0f, 1.0f) * Config::SAMPLE_SCALE);
+			buf[i * channels + 1] =
+			    static_cast<int16_t>(std::clamp(r_dithered, -1.0f, 1.0f) * Config::SAMPLE_SCALE);
+
+			fft_acc.write((l_dithered + r_dithered) * 0.5f);
 		}
 
 		snd_pcm_sframes_t written = snd_pcm_writei(handle, buf.data(), period_size);

@@ -10,6 +10,7 @@
 #include <alsa/asoundlib.h>
 #include <atomic>
 #include <functional>
+#include <random>
 #include <thread>
 
 class AudioEngine {
@@ -56,4 +57,7 @@ private:
 	float meter_rms_r  = 0;
 	float meter_peak_l = 0;
 	float meter_peak_r = 0;
+
+	std::default_random_engine generator;
+	std::uniform_real_distribution<float> distribution {-1.0f, 1.0f};
 };
