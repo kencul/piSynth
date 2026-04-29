@@ -4,6 +4,7 @@
 
 void DelayLine::init(int max_samples) {
 	buffer.resize(max_samples, 0.0f);
+	clear();
 	write_pos = 0;
 }
 

@@ -39,6 +39,8 @@ public:
 	void process(std::span<float> mix_l, std::span<float> mix_r, float cutoff_hz, float resonance);
 	void snapshot(WaveguideSnapshot &out) const;
 
+	void reset();
+
 private:
 	// scratch buffer for osc output before pan is applied
 	std::vector<float> tmp;

@@ -16,6 +16,8 @@ public:
 	bool is_releasing() const;
 	bool is_killing() const;
 
+	void reset();
+
 private:
 	enum class Stage { Idle, Attack, Sustain, Release, Kill };
 

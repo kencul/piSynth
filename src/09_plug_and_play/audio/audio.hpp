@@ -22,6 +22,7 @@ public:
 	bool open();
 	void start();
 	void stop();
+	bool is_running() const { return running.load(); }
 
 	std::function<void(float rms_l, float rms_r, float peak_l, float peak_r)> on_meter;
 	std::function<void(WaveguideSnapshot)> on_waveguide;

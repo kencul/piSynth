@@ -129,9 +129,9 @@ bool AudioEngine::configure_device() {
 	snd_pcm_hw_params_set_buffer_size_near(handle, hw_params, &buffer_size);
 
 	// Rate Priority: 48000 then 44100
-	unsigned int rate = 48000;
+	unsigned int rate = 44100;
 	if (snd_pcm_hw_params_set_rate(handle, hw_params, rate, 0) < 0) {
-		rate = 44100;
+		rate = 48000;
 		if (snd_pcm_hw_params_set_rate(handle, hw_params, rate, 0) < 0) {
 			if (snd_pcm_hw_params_set_rate_near(handle, hw_params, &sample_rate, nullptr) < 0) {
 				std::cerr << "AudioEngine: could not set sample rate\n";
@@ -277,6 +277,7 @@ void AudioEngine::audio_loop() {
 			written = snd_pcm_recover(handle, written, 0);
 			if (written < 0) {
 				std::cerr << "AudioEngine: unrecoverable error: " << snd_strerror(written) << "\n";
+				running.store(false);
 				break;
 			}
 		}

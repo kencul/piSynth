@@ -6,7 +6,10 @@
 #include <iostream>
 
 void VoiceManager::init(int period_size) {
-	for (auto &v : voices) v.init(period_size);
+	for (auto &v : voices) {
+		v.reset();
+		v.init(period_size);
+	}
 	cutoff_smoother.reset(params.get_value(SynthParams::ParamId::FilterCutoff));
 	resonance_smoother.reset(params.get_value(SynthParams::ParamId::FilterResonance));
 }
@@ -81,9 +84,7 @@ WaveguideSnapshot VoiceManager::snapshot() const {
 	}
 
 	WaveguideSnapshot snap;
-	if (newest_idx >= 0) {
-		voices[newest_idx].snapshot(snap);
-	}
+	if (newest_idx >= 0) { voices[newest_idx].snapshot(snap); }
 	return snap;
 }
 

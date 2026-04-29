@@ -59,3 +59,8 @@ bool ADSR::is_releasing() const { return stage == Stage::Release; }
 bool ADSR::is_killing() const { return stage == Stage::Kill; }
 
 float ADSR::ms_to_rate(float ms) const { return 1.0f / (ms * 0.001f * Config::SAMPLE_RATE); }
+
+void ADSR::reset() {
+	stage = Stage::Idle;
+	level = 0.0f;
+}

@@ -24,7 +24,7 @@ int main() {
 	MidiReader midi(event_queue, params);
 	WebServer web(params, dispatcher);
 
-	if (!audio.open()) return 1;
+	// if (!audio.open()) return 1;
 	if (!midi.open()) return 1;
 
 	// audio thread -> web: meter data at ~30fps
@@ -62,12 +62,24 @@ int main() {
 
 	web.set_fft_acc(&audio.get_fft_acc());
 
-	audio.start();
+	// audio.start();
 	midi.start();
 	web.start(Config::UI_PORT);
 
 	std::cout << "Synth running. Press Ctrl+C to quit.\n";
-	while (!should_quit.load()) pause();
+	while (!should_quit.load()) {
+		if (audio.open()) {
+			audio.start();
+			// Monitor the engine
+			while (audio.is_running() && !should_quit.load()) {
+				std::this_thread::sleep_for(std::chrono::milliseconds(100));
+			}
+			audio.stop();
+		} else {
+			// Wait and retry if no device is found
+			std::this_thread::sleep_for(std::chrono::seconds(1));
+		}
+	}
 	std::cout << "\nShutting down...\n";
 
 	audio.stop();

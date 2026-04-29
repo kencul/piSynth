@@ -95,3 +95,12 @@ std::optional<Voice::PendingNote> Voice::consume_pending() {
 	active = false;
 	return std::nullopt;
 }
+
+void Voice::reset() {
+	note   = -1;
+	active = false;
+	osc.clear();
+	envelope.reset();
+	filter.reset();
+	pending.reset();
+}

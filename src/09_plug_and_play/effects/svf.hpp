@@ -1,6 +1,7 @@
 #pragma once
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <numbers>
 
 class SVF {
@@ -27,4 +28,5 @@ private:
 	float s2 {0.0f};
 	float last_cutoff {0.0f};
 	float last_resonance {0.0f};
+	unsigned int last_sample_rate {0};
 };

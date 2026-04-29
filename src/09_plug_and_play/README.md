@@ -433,3 +433,87 @@ if (!has_playback) {
 
 This process iterates through all available sound cards until it finds a valid output or it reaches the end of the list.
 
+### Loop Search
+
+Right now, if there is no valid audio device when the program runs, it exits. Instead, it should loop every second or so, looking for any new devices. This means looping within `main.cpp`:
+
+```cpp
+while (!should_quit.load()) {
+        if (audio.open()) {
+                audio.start();
+                // Monitor the engine
+                while (audio.is_running() && !should_quit.load()) {
+                        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                }
+                audio.stop();
+        } else {
+                // Wait and retry if no device is found
+                std::this_thread::sleep_for(std::chrono::seconds(1));
+        }
+}
+```
+
+To make the program search for a new audio device when it is disconnected, it sets the running flag in `AudioEngine` to false to trigger the audio thread to stop and for `.open()` to run again.
+
+### Handling Reinitialization
+
+When starting with a new audio device after one was disconnected, there is a danger of a different sample rate begin set. This means all the components that rely on the sample rate for accurate synthesis must update accordingly.
+
+In particular, the ADSR, SVF and the voices don't handle reinitialization properly.
+
+For the ADSR, it needs a simple reset function:
+
+```cpp
+void ADSR::reset() {
+	stage = Stage::Idle;
+	level = 0.0f;
+}
+```
+
+The SVF needs to calculate the coefficients based on the sample rate. By keeping track of the sample rate, if the sample rate changes, the coefficients are recalculated:
+
+```cpp
+void SVF::set_cutoff(float hz) {
+	hz = std::clamp(hz, 20.0f, Config::SAMPLE_RATE * 0.49f);
+	if (hz == last_cutoff && last_sample_rate == Config::SAMPLE_RATE) return;
+	last_cutoff      = hz;
+	last_sample_rate = Config::SAMPLE_RATE;
+	g                = std::tan(std::numbers::pi_v<float> * hz / Config::SAMPLE_RATE);
+	update_coefficients();
+}
+```
+
+Finally, the voices get a `reset()` function that resets the state of all its components to make sure it starts with a clean slate with no note active:
+
+```cpp
+void Voice::reset() {
+	note   = -1;
+	active = false;
+	osc.clear();
+	envelope.reset();
+	filter.reset();
+	pending.reset();
+}
+```
+
+This is then triggered by voice_manager for each voice:
+
+```cpp
+for (auto &v : voices) {
+        v.reset();
+        v.init(period_size);
+}
+```
+
+For most other components, simply ensuring the `delay_line` primitive clears its buffer is all it needs:
+
+```cpp
+void DelayLine::init(int max_samples) {
+	buffer.resize(max_samples, 0.0f);
+	clear();
+	write_pos = 0;
+}
+```
+
+This means that as long as a USB Audio device that supports 44.1k or 48k sample rate at 32, 24, or 16 bit depth PCM output is plugged into the Pi, the program will automatically connect to it and output synthesis.
+
