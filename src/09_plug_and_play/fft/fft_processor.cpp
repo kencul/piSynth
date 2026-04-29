@@ -60,5 +60,10 @@ template <int N> std::optional<SpectrumMsg> FftProcessor::process(FftAccumulator
 	return msg;
 }
 
+void FftProcessor::reset() {
+	std::fill(accum_buf.begin(), accum_buf.end(), 0.0f);
+	std::fill(out_buf.begin(), out_buf.end(), 0.0f);
+}
+
 template std::optional<SpectrumMsg>
 FftProcessor::process<Config::FFT_ACC_SIZE>(FftAccumulator<Config::FFT_ACC_SIZE> &);

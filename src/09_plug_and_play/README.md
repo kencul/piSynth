@@ -517,3 +517,59 @@ void DelayLine::init(int max_samples) {
 
 This means that as long as a USB Audio device that supports 44.1k or 48k sample rate at 32, 24, or 16 bit depth PCM output is plugged into the Pi, the program will automatically connect to it and output synthesis.
 
+### UI Display
+
+Now the MIDI devices are automatically connected to the synth and audio devices are automatically connected, the device names should be reflected in the web UI.
+
+Sending the name of the audio device is simple. The name of the audio device is cached in the audio engine. Whenever the audio engine starts or stops, a JSON message of the audio device is broadcast:
+
+```cpp
+auto broadcast_audio_device = [&web, &audio]() {
+        web.broadcast(AudioDeviceMsg {audio.get_device_name()});
+};
+```
+
+Getting the list of MIDI device names is a little more convoluted:
+
+```cpp
+std::string MidiReader::get_connected_names() {
+	if (!seq || in_port < 0) return "None";
+
+	std::string names = "";
+	snd_seq_query_subscribe_t *subs;
+	snd_seq_query_subscribe_alloca(&subs);
+
+	snd_seq_query_subscribe_set_client(subs, snd_seq_client_id(seq));
+	snd_seq_query_subscribe_set_port(subs, in_port);
+
+	// Find who is writing to us
+	snd_seq_query_subscribe_set_type(subs, SND_SEQ_QUERY_SUBS_WRITE);
+	snd_seq_query_subscribe_set_index(subs, 0);
+
+	while (snd_seq_query_port_subscribers(seq, subs) >= 0) {
+		// This address represents the SENDER (the MIDI controller)
+		const snd_seq_addr_t *addr = snd_seq_query_subscribe_get_addr(subs);
+
+		snd_seq_client_info_t *c_info;
+		snd_seq_client_info_alloca(&c_info);
+
+		if (snd_seq_get_any_client_info(seq, addr->client, c_info) >= 0) {
+			std::string client_name = snd_seq_client_info_get_name(c_info);
+
+			if (client_name != "System" && client_name != "Midi Through") {
+				if (names.find(client_name) == std::string::npos) {
+					if (!names.empty()) names += ", ";
+					names += client_name;
+				}
+			}
+		}
+
+		snd_seq_query_subscribe_set_index(subs, snd_seq_query_subscribe_get_index(subs) + 1);
+	}
+
+	return names.empty() ? "None" : names;
+}
+```
+
+This function filters the clients that send MIDI to the synth, and creates a comma separated list of MIDI device names. This list is then broadcast in JSON.
+

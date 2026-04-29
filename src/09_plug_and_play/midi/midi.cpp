@@ -38,6 +38,7 @@ bool MidiReader::open(std::initializer_list<const char *> device_names) {
 
 void MidiReader::start() {
 	running.store(true);
+	if (on_port_change) on_port_change();
 	thread = std::thread(&MidiReader::midi_loop, this);
 }
 
@@ -117,12 +118,14 @@ void MidiReader::handle_event(snd_seq_event_t *ev) {
 			// A new port available
 			std::cout << "MidiReader: New MIDI port detected. Re-scanning...\n";
 			connect_all_inputs();
+			if (on_port_change) on_port_change();
 			break;
 
 		case SND_SEQ_EVENT_CLIENT_EXIT:
 			// A device was removed.
 			// ALSA kills the connection automatically
 			std::cout << "MidiReader: Device disconnected.\n";
+			if (on_port_change) on_port_change();
 			break;
 
 		default: break;
@@ -180,4 +183,42 @@ bool MidiReader::connect_all_inputs() {
 		}
 	}
 	return true;
+}
+
+std::string MidiReader::get_connected_names() {
+	if (!seq || in_port < 0) return "";
+
+	std::string names = "";
+	snd_seq_query_subscribe_t *subs;
+	snd_seq_query_subscribe_alloca(&subs);
+
+	snd_seq_query_subscribe_set_client(subs, snd_seq_client_id(seq));
+	snd_seq_query_subscribe_set_port(subs, in_port);
+
+	// Find who is writing to us
+	snd_seq_query_subscribe_set_type(subs, SND_SEQ_QUERY_SUBS_WRITE);
+	snd_seq_query_subscribe_set_index(subs, 0);
+
+	while (snd_seq_query_port_subscribers(seq, subs) >= 0) {
+		// This address represents the SENDER (the MIDI controller)
+		const snd_seq_addr_t *addr = snd_seq_query_subscribe_get_addr(subs);
+
+		snd_seq_client_info_t *c_info;
+		snd_seq_client_info_alloca(&c_info);
+
+		if (snd_seq_get_any_client_info(seq, addr->client, c_info) >= 0) {
+			std::string client_name = snd_seq_client_info_get_name(c_info);
+
+			if (client_name != "System" && client_name != "Midi Through") {
+				if (names.find(client_name) == std::string::npos) {
+					if (!names.empty()) names += ", ";
+					names += client_name;
+				}
+			}
+		}
+
+		snd_seq_query_subscribe_set_index(subs, snd_seq_query_subscribe_get_index(subs) + 1);
+	}
+
+	return names.empty() ? "" : names;
 }

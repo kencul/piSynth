@@ -6,64 +6,234 @@
 <style>
 /* ── Base & Layout ── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
 body {
-  font-family: 'Courier New', monospace; background: #111; color: #aaa;
-  display: flex; flex-direction: column; height: 100vh; overflow: hidden;
+  font-family: 'Courier New', monospace;
+  background: #111;
+  color: #aaa;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
 }
+
+/* ── Header ── */
 header {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 10px 16px; border-bottom: 1px solid #1c1c1c; background: #0d0d0d;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 16px;
+  border-bottom: 1px solid #1c1c1c;
+  background: #0d0d0d;
 }
-header h1 { font-size: clamp(16px, 2vw, 24px); letter-spacing: 3px; text-transform: uppercase; color: #fff; font-weight: normal; }
-#status { font-size: clamp(12px, 1.2vw, 14px); font-weight: bold; }
-#status.connected { color: #33aa55; } #status.disconnected { color: #883333; }
+
+header h1 {
+  font-size: clamp(16px, 2vw, 24px);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: #fff;
+  font-weight: normal;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+/* ── Header Indicators & Tooltips ── */
+.device-stat, #status {
+  font-size: 16px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+.device-stat {
+  position: relative;
+  cursor: help;
+  transition: color 0.2s;
+}
+
+.connected-device, #status.connected { color: #33aa55; }
+.disconnected-device, #status.disconnected { color: #883333; }
+.connecting { color: #aaa; }
+
+.tooltip {
+  visibility: hidden;
+  opacity: 0;
+  position: absolute;
+  top: 150%;
+  right: 0;
+  background: #222;
+  color: #55aaff;
+  padding: 8px 12px;
+  border: 1px solid #444;
+  border-radius: 4px;
+  font-size: 16px;
+  z-index: 100;
+  transition: opacity 0.2s;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.8);
+  text-transform: none;
+  letter-spacing: 0;
+  text-align: right;
+}
+
+.device-stat:hover .tooltip {
+  visibility: visible;
+  opacity: 1;
+}
 
 /* ── String Visualizer ── */
 #string-panel {
-  width: 100%; height: 120px; background: #0d0d0d;
-  border-bottom: 1px solid #1c1c1c; flex-shrink: 0;
+  width: 100%;
+  height: 120px;
+  background: #0d0d0d;
+  border-bottom: 1px solid #1c1c1c;
+  flex-shrink: 0;
 }
-#string-canvas { display: block; width: 100%; height: 100%; }
 
-main { display: flex; flex: 1; overflow: hidden; }
+#string-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* ── Main Layout ── */
+main {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
 
 /* ── Meter ── */
 #meter-panel {
-  display: flex; flex-direction: column; align-items: center; padding: 14px 10px 10px;
-  border-right: 1px solid #1c1c1c; background: #0d0d0d; width: clamp(100px, 12vw, 150px); 
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 14px 10px 10px;
+  border-right: 1px solid #1c1c1c;
+  background: #0d0d0d;
+  width: clamp(100px, 12vw, 150px); 
 }
-#meter-title { font-size: 13px; color: #fff; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px; font-weight: bold; }
-#meter { width: 100%; height: 100%; flex: 1; }
+
+#meter-title {
+  font-size: 13px;
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 8px;
+  font-weight: bold;
+}
+
+#meter {
+  width: 100%;
+  height: 100%;
+  flex: 1;
+}
 
 /* ── Params Panel ── */
-#params-panel { flex: 1; overflow-y: auto; padding: 30px; display: flex; flex-wrap: wrap; gap: 25px; align-content: flex-start; }
+#params-panel {
+  flex: 1;
+  overflow-y: auto;
+  padding: 30px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 25px;
+  align-content: flex-start;
+}
+
 #params-panel::-webkit-scrollbar { width: 4px; }
 #params-panel::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
 
 .param-group {
-  border: 1px solid #333; border-radius: 8px; padding: 20px; background: #181818;
-  display: flex; flex-direction: column; width: fit-content; box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 20px;
+  background: #181818;
+  display: flex;
+  flex-direction: column;
+  width: fit-content;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.5);
 }
-.param-group h2 { font-size: clamp(13px, 1.3vw, 16px); color: #fff; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 15px; border-bottom: 2px solid #333; padding-bottom: 8px; font-weight: bold; }
+
+.param-group h2 {
+  font-size: clamp(13px, 1.3vw, 16px);
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 15px;
+  border-bottom: 2px solid #333;
+  padding-bottom: 8px;
+  font-weight: bold;
+}
+
 .group-grid { display: flex; gap: 20px; }
 .orphan-container { display: flex; gap: 20px; padding-top: 35px; }
 
 /* ── Knobs ── */
-.knob { display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: ns-resize; user-select: none; width: clamp(80px, 10vw, 120px); }
-.knob canvas { display: block; width: 100%; aspect-ratio: 1; }
-.knob-label { font-size: 12px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; text-align: center; font-weight: bold; }
-.knob-val { font-size: 11px; color: #55aaff; white-space: nowrap; font-family: monospace; }
+.knob {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  cursor: ns-resize;
+  user-select: none;
+  width: clamp(80px, 10vw, 120px);
+}
+
+.knob canvas {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+}
+
+.knob-label {
+  font-size: 12px;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+  text-align: center;
+  font-weight: bold;
+}
+
+.knob-val {
+  font-size: 11px;
+  color: #55aaff;
+  white-space: nowrap;
+  font-family: monospace;
+}
 </style>
 </head>
 
 <body>
 <header>
   <h1>Pluck Synth</h1>
-  <span id="status" class="connecting">Connecting&hellip;</span>
+  <div class="header-right">
+    <div class="device-stat" id="audio-stat">
+      Audio Out
+      <div class="tooltip" id="audio-out">None</div>
+    </div>
+    <div class="device-stat" id="midi-stat">
+      Midi Devices:<span id="midi-count">0</span>
+      <div class="tooltip" id="midi-in">None</div>
+    </div>
+    <span id="status" class="connecting">Connecting&hellip;</span>
+  </div>
 </header>
-<div id="string-panel"><canvas id="string-canvas"></canvas></div>
+
+<div id="string-panel">
+  <canvas id="string-canvas"></canvas>
+</div>
+
 <main>
-  <div id="meter-panel"><span id="meter-title">Level</span><canvas id="meter"></canvas></div>
+  <div id="meter-panel">
+    <span id="meter-title">Level</span>
+    <canvas id="meter"></canvas>
+  </div>
   <div id="params-panel"></div>
 </main>
 
@@ -79,6 +249,12 @@ const fmtVal = (v, u) => `${+(v.toFixed(v>=1000?0:v>=100?1:v>=10?2:3))}${u ? ' '
 const MIN_DB = -60, PEAK_HOLD_MS = 1800, PEAK_FALL_RATE = 10; 
 const DB_TICKS = [0, -3, -6, -12, -18, -24, -36, -48, -60];
 const PI = Math.PI, K_START = 120 * PI/180, K_END = 60 * PI/180, K_SWEEP = 300 * PI/180;
+
+// --- Devices ---
+const audioStat = $('audio-stat');
+const audioTip = $('audio-out');
+const midiCount = $('midi-count');
+const midiTip = $('midi-in');
 
 const GROUPS = {
   'Waveguide': ['decay', 'pluck pos', 'pickup pos'], 'Envelope': ['attack', 'release'],
@@ -299,6 +475,9 @@ ws.onclose = () => { statusEl.textContent = 'Disconnected'; statusEl.className =
 
 ws.onmessage = ({ data }) => {
   const msg = JSON.parse(data);
+  if(msg.type == 'midiDevice' || msg.type == 'audioDevice') {
+    console.log('Received message:', msg);
+  }
   if (msg.type === 'meter') {
     meter.rms = [msg.rms_l, msg.rms_r];
     [lin2db(msg.peak_l), lin2db(msg.peak_r)].forEach((pk, ch) => {
@@ -401,6 +580,18 @@ ws.onmessage = ({ data }) => {
   } else if (msg.type === 'config') {
     SPEC_SR   = msg.sample_rate;
     SPEC_BINS = msg.spectrum_bins;
+  } else if (msg.type === 'audioDevice') {
+    const hasDevice = msg.audio && msg.audio != "None";
+    audioTip.textContent = hasDevice ? msg.audio : 'No Audio Device';
+    audioStat.className = `device-stat ${hasDevice ? 'connected-device' : 'disconnected-device'}`;
+  } else if (msg.type === 'midiDevice') {
+    // Split the comma-separated string to get the count
+    const devices = msg.midi ? msg.midi.split(',').filter(s => s.trim().length > 0) : [];
+    midiCount.textContent = devices.length;
+    midiTip.innerHTML = devices.length > 0 ? devices.join('<br>') : 'No MIDI Devices';
+    
+    const midiStat = $('midi-stat');
+    midiStat.className = `device-stat ${devices.length > 0 ? 'connected-device' : 'disconnected-device'}`;
   }
 };
 

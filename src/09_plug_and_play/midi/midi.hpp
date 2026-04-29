@@ -17,9 +17,13 @@ public:
 	void start();
 	void stop();
 
+	std::string get_connected_names();
+
 	std::function<void(
 	    SynthParams::ParamId, float normalized, float value, const char *name, const char *unit)>
 	    on_param_change;
+
+	std::function<void()> on_port_change;
 
 private:
 	void midi_loop();

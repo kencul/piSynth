@@ -24,6 +24,10 @@ public:
 	void stop();
 	bool is_running() const { return running.load(); }
 
+	std::string get_device_name() const { return running.load() ? current_device_name : ""; }
+
+	std::function<void()> on_state_change;
+
 	std::function<void(float rms_l, float rms_r, float peak_l, float peak_r)> on_meter;
 	std::function<void(WaveguideSnapshot)> on_waveguide;
 
@@ -39,6 +43,8 @@ private:
 	MasterBus master_bus;
 	std::thread thread;
 	std::atomic<bool> running {false};
+
+	std::string current_device_name = "";
 
 	bool use_floats = true;
 

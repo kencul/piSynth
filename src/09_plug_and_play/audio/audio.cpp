@@ -57,7 +57,9 @@ bool AudioEngine::open() {
 
 				if (snd_pcm_open(&handle, device_path.c_str(), SND_PCM_STREAM_PLAYBACK, 0) >= 0) {
 					if (configure_device()) {
-						connected = true;
+						connected           = true;
+						std::string name    = snd_ctl_card_info_get_name(info);
+						current_device_name = name;
 						break;
 					}
 					snd_pcm_close(handle);
@@ -129,9 +131,9 @@ bool AudioEngine::configure_device() {
 	snd_pcm_hw_params_set_buffer_size_near(handle, hw_params, &buffer_size);
 
 	// Rate Priority: 48000 then 44100
-	unsigned int rate = 44100;
+	unsigned int rate = 48000;
 	if (snd_pcm_hw_params_set_rate(handle, hw_params, rate, 0) < 0) {
-		rate = 48000;
+		rate = 44100;
 		if (snd_pcm_hw_params_set_rate(handle, hw_params, rate, 0) < 0) {
 			if (snd_pcm_hw_params_set_rate_near(handle, hw_params, &sample_rate, nullptr) < 0) {
 				std::cerr << "AudioEngine: could not set sample rate\n";
@@ -170,12 +172,13 @@ bool AudioEngine::configure_device() {
 
 	std::cout << "AudioEngine: rate=" << sample_rate << " period=" << period_size
 	          << " buffer=" << buffer_size << " format=" << (use_floats ? "float" : "int16")
-	          << "\n";
+	          << " UI refresh rate:" << meter_interval << "\n";	
 	return true;
 }
 
 void AudioEngine::start() {
 	running.store(true);
+	if (on_state_change) on_state_change();
 	thread = std::thread(&AudioEngine::audio_loop, this);
 
 	// elevate above normal scheduler after thread is running
@@ -193,6 +196,7 @@ void AudioEngine::start() {
 
 void AudioEngine::stop() {
 	running.store(false);
+	if (on_state_change) on_state_change();
 	if (thread.joinable()) thread.join();
 
 	if (handle) {
@@ -239,8 +243,12 @@ void AudioEngine::audio_loop() {
 			float *f_ptr = reinterpret_cast<float *>(buf.data());
 
 			for (size_t i = 0; i < period_size; ++i) {
-				f_ptr[i * channels + 0] = std::clamp(mix_l[i], -1.0f, 1.0f);
-				f_ptr[i * channels + 1] = std::clamp(mix_r[i], -1.0f, 1.0f);
+				float l                 = std::clamp(mix_l[i], -1.0f, 1.0f);
+				float r                 = std::clamp(mix_r[i], -1.0f, 1.0f);
+				f_ptr[i * channels + 0] = l;
+				f_ptr[i * channels + 1] = r;
+
+				fft_acc.write((l + r) * 0.5f);
 			}
 		} else {
 			int16_t *s16_ptr = reinterpret_cast<int16_t *>(buf.data());

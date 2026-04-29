@@ -77,3 +77,19 @@ struct ParamMsg {
 		    .str();
 	}
 };
+
+struct MIDIDeviceMsg {
+	std::string midi_devices; // Comma-separated list
+
+	std::string serialize() const {
+		return JsonMsg("midiDevice").field("midi", midi_devices).str();
+	}
+};
+
+struct AudioDeviceMsg {
+	std::string audio_device;
+
+	std::string serialize() const {
+		return JsonMsg("audioDevice").field("audio", audio_device).str();
+	}
+};

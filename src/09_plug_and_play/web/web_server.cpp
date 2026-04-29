@@ -68,6 +68,9 @@ void WebServer::send_initial_state(WS *ws) {
 		             .serialize(),
 		         uWS::OpCode::TEXT);
 	}
+
+	ws->send(last_midi_device_msg.serialize(), uWS::OpCode::TEXT);
+	ws->send(last_audio_device_msg.serialize(), uWS::OpCode::TEXT);
 }
 
 void WebServer::run(int port) {
@@ -138,4 +141,9 @@ void WebServer::run(int port) {
 	    .run();
 
 	std::cout << "WebServer: event loop exited\n";
+}
+
+void WebServer::reset_fft() {
+	if (fft_acc) { fft_acc->reset(); }
+	fft.reset();
 }

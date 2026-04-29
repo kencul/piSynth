@@ -18,6 +18,7 @@ public:
 	explicit WebServer(SynthParams &params, MsgDispatcher &dispatcher);
 	void start(int port);
 	void stop();
+	void reset_fft();
 
 	void set_fft_acc(FftAccumulator<Config::FFT_ACC_SIZE> *acc) { fft_acc = acc; }
 
@@ -26,6 +27,18 @@ public:
 	template <typename Msg> void broadcast(Msg msg) {
 		if (!loop) return;
 		loop->defer([this, m = std::move(msg)] { broadcast_direct(m.serialize()); });
+	}
+
+	void broadcast_midi_device(const std::string &device_names) {
+		MIDIDeviceMsg msg {device_names};
+		broadcast(msg);
+		last_midi_device_msg = msg;
+	}
+
+	void broadcast_audio_device(const std::string &device_name) {
+		AudioDeviceMsg msg {device_name};
+		broadcast(msg);
+		last_audio_device_msg = msg;
 	}
 
 private:
@@ -49,4 +62,7 @@ private:
 	std::unordered_set<WS *> clients;
 	uWS::Loop *loop                   = nullptr;
 	us_listen_socket_t *listen_socket = nullptr;
+
+	MIDIDeviceMsg last_midi_device_msg;
+	AudioDeviceMsg last_audio_device_msg;
 };

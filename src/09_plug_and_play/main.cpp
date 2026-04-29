@@ -24,7 +24,15 @@ int main() {
 	MidiReader midi(event_queue, params);
 	WebServer web(params, dispatcher);
 
-	// if (!audio.open()) return 1;
+	auto broadcast_midi_device = [&web, &midi]() {
+		std::cout << "Broadcasting MIDI device change: " << midi.get_connected_names() << "\n";
+		web.broadcast_midi_device(midi.get_connected_names());
+	};
+
+	auto broadcast_audio_device = [&web, &audio]() {
+		web.broadcast_audio_device(audio.get_device_name());
+	};
+
 	if (!midi.open()) return 1;
 
 	// audio thread -> web: meter data at ~30fps
@@ -42,6 +50,9 @@ int main() {
 	    [&web](SynthParams::ParamId id, float norm, float val, const char *name, const char *unit) {
 		    web.broadcast(ParamMsg {id, norm, val, name, unit});
 	    };
+
+	midi.on_port_change   = broadcast_midi_device;
+	audio.on_state_change = broadcast_audio_device;
 
 	// web thread -> synth: apply slider change, echo to all clients for multi-client sync
 	dispatcher.on("set_param", [&params, &web](std::string_view msg) {
@@ -69,6 +80,7 @@ int main() {
 	std::cout << "Synth running. Press Ctrl+C to quit.\n";
 	while (!should_quit.load()) {
 		if (audio.open()) {
+			web.reset_fft();
 			audio.start();
 			// Monitor the engine
 			while (audio.is_running() && !should_quit.load()) {

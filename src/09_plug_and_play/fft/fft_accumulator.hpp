@@ -35,6 +35,11 @@ public:
 		return static_cast<int>((w - r + N) % N);
 	}
 
+	void reset() {
+		write_pos.store(0, std::memory_order_relaxed);
+		read_pos.store(0, std::memory_order_release);
+	}
+
 private:
 	std::array<float, N> buf {};
 	std::atomic<size_t> write_pos {0};

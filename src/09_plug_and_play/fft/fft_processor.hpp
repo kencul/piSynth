@@ -10,11 +10,12 @@
 class FftProcessor {
 public:
 	static constexpr int FFT_SIZE  = Config::FFT_SIZE;
-	static constexpr int BIN_COUNT = FFT_SIZE / 2;        // 1024 bins
+	static constexpr int BIN_COUNT = FFT_SIZE / 2; // 1024 bins
 	static constexpr int OUT_BINS  = Config::FFT_OUT_BINS;
 
 	void init();
 	void destroy();
+	void reset();
 
 	// Call from the uWS thread. Returns a message if a full window was ready.
 	template <int N> std::optional<SpectrumMsg> process(FftAccumulator<N> &acc);
