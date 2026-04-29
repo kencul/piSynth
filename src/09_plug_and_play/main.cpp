@@ -24,7 +24,7 @@ int main() {
 	MidiReader midi(event_queue, params);
 	WebServer web(params, dispatcher);
 
-	if (!audio.open(Config::AUDIO_DEVICE)) return 1;
+	if (!audio.open()) return 1;
 	if (!midi.open()) return 1;
 
 	// audio thread -> web: meter data at ~30fps

@@ -9,13 +9,72 @@ AudioEngine::AudioEngine(RingBuffer<NoteEvent, 64> &event_queue, SynthParams &pa
 
 AudioEngine::~AudioEngine() { stop(); }
 
-bool AudioEngine::open(const char *device) {
-	if (snd_pcm_open(&handle, device, SND_PCM_STREAM_PLAYBACK, 0) < 0) {
-		std::cerr << "AudioEngine: could not open device: " << device << "\n";
-		return false;
+bool AudioEngine::open() {
+	int card       = -1;
+	bool connected = false;
+
+	while (snd_card_next(&card) == 0 && card >= 0) {
+		snd_ctl_t *ctl;
+		std::string card_id = "hw:" + std::to_string(card);
+
+		if (snd_ctl_open(&ctl, card_id.c_str(), 0) < 0) continue;
+
+		snd_ctl_card_info_t *info;
+		snd_ctl_card_info_alloca(&info);
+
+		if (snd_ctl_card_info(ctl, info) >= 0) {
+			std::string driver = snd_ctl_card_info_get_driver(info);
+
+			// Check for USB-Audio driver
+			if (driver.find("USB-Audio") != std::string::npos) {
+				// Query the card for PCM playback devices
+				int dev           = -1;
+				bool has_playback = false;
+				while (snd_ctl_pcm_next_device(ctl, &dev) == 0 && dev >= 0) {
+					snd_pcm_info_t *pcm_info;
+					snd_pcm_info_alloca(&pcm_info);
+					snd_pcm_info_set_device(pcm_info, dev);
+					snd_pcm_info_set_subdevice(pcm_info, 0);
+					snd_pcm_info_set_stream(pcm_info, SND_PCM_STREAM_PLAYBACK);
+
+					if (snd_ctl_pcm_info(ctl, pcm_info) >= 0) {
+						has_playback = true;
+						break;
+					}
+				}
+
+				if (!has_playback) {
+					snd_ctl_close(ctl);
+					continue; // Skip MIDI-only "Audio" devices
+				}
+
+				std::string long_name   = snd_ctl_card_info_get_longname(info);
+				std::string device_path = "plughw:" + std::to_string(card) + ",0";
+
+				snd_ctl_close(ctl); // Close ctl before opening pcm
+
+				std::cout << "AudioEngine: Found USB Playback Device: " << long_name << "\n";
+
+				if (snd_pcm_open(&handle, device_path.c_str(), SND_PCM_STREAM_PLAYBACK, 0) >= 0) {
+					if (configure_device()) {
+						connected = true;
+						break;
+					}
+					snd_pcm_close(handle);
+					handle = nullptr;
+				}
+			} else {
+				snd_ctl_close(ctl);
+			}
+		} else {
+			snd_ctl_close(ctl);
+		}
 	}
 
-	if (!configure_device()) return false;
+	if (!connected) {
+		std::cerr << "AudioEngine: No valid USB device found\n";
+		return false;
+	}
 
 	voice_manager.init(period_size);
 	master_bus.init();
@@ -27,17 +86,73 @@ bool AudioEngine::open(const char *device) {
 	return true;
 }
 
+std::string AudioEngine::find_usb_device() {
+	int card = -1;
+	while (snd_card_next(&card) == 0 && card >= 0) {
+		snd_ctl_t *ctl;
+		std::string card_id = "hw:" + std::to_string(card);
+
+		if (snd_ctl_open(&ctl, card_id.c_str(), 0) < 0) continue;
+
+		snd_ctl_card_info_t *info;
+		snd_ctl_card_info_alloca(&info);
+
+		if (snd_ctl_card_info(ctl, info) >= 0) {
+			std::string driver    = snd_ctl_card_info_get_driver(info);
+			std::string long_name = snd_ctl_card_info_get_longname(info);
+
+			snd_ctl_close(ctl);
+
+			std::cout << "AudioEngine: Found card " << card_id << " - " << long_name
+			          << " (driver: " << driver << ")\n";
+
+			// "USB-Audio" is the most reliable driver string for ALSA USB devices
+			if (driver.find("USB-Audio") != std::string::npos
+			    || long_name.find("USB-Audio") != std::string::npos) {
+				return "plughw:" + std::to_string(card) + ",0";
+			}
+		} else {
+			snd_ctl_close(ctl);
+		}
+	}
+	return "default";
+}
+
 bool AudioEngine::configure_device() {
 	snd_pcm_hw_params_t *hw_params;
 	snd_pcm_hw_params_alloca(&hw_params);
 	snd_pcm_hw_params_any(handle, hw_params);
 
 	snd_pcm_hw_params_set_access(handle, hw_params, SND_PCM_ACCESS_RW_INTERLEAVED);
-	snd_pcm_hw_params_set_format(handle, hw_params, SND_PCM_FORMAT_S16_LE);
 	snd_pcm_hw_params_set_channels(handle, hw_params, channels);
-	snd_pcm_hw_params_set_rate_near(handle, hw_params, &sample_rate, nullptr);
 	snd_pcm_hw_params_set_period_size_near(handle, hw_params, &period_size, nullptr);
 	snd_pcm_hw_params_set_buffer_size_near(handle, hw_params, &buffer_size);
+
+	// Rate Priority: 48000 then 44100
+	unsigned int rate = 48000;
+	if (snd_pcm_hw_params_set_rate(handle, hw_params, rate, 0) < 0) {
+		rate = 44100;
+		if (snd_pcm_hw_params_set_rate(handle, hw_params, rate, 0) < 0) {
+			if (snd_pcm_hw_params_set_rate_near(handle, hw_params, &sample_rate, nullptr) < 0) {
+				std::cerr << "AudioEngine: could not set sample rate\n";
+				return false; // Couldn't set sample rate
+			}
+		}
+	}
+	this->sample_rate = rate;
+
+	// Check for high-bitrate support to decide on float vs dithered int16
+	if (snd_pcm_hw_params_test_format(handle, hw_params, SND_PCM_FORMAT_S32_LE) == 0
+	    || snd_pcm_hw_params_test_format(handle, hw_params, SND_PCM_FORMAT_S24_LE) == 0
+	    || snd_pcm_hw_params_test_format(handle, hw_params, SND_PCM_FORMAT_S24_3LE) == 0) {
+		// Hardware is high-res; we will provide floats and let plughw convert
+		snd_pcm_hw_params_set_format(handle, hw_params, SND_PCM_FORMAT_FLOAT_LE);
+		use_floats = true;
+	} else {
+		// Fallback to 16-bit; we will dither manually in the loop
+		snd_pcm_hw_params_set_format(handle, hw_params, SND_PCM_FORMAT_S16_LE);
+		use_floats = false;
+	}
 
 	int err;
 	if ((err = snd_pcm_hw_params(handle, hw_params)) < 0) {
@@ -47,11 +162,15 @@ bool AudioEngine::configure_device() {
 
 	Config::SAMPLE_RATE = sample_rate;
 
+	size_t bytes_per_sample = use_floats ? sizeof(float) : sizeof(int16_t);
+	buf.assign(period_size * channels * bytes_per_sample, 0);
+
 	meter_interval = static_cast<int>(sample_rate / period_size / Config::UI_UPDATES_PER_SECOND);
 	if (meter_interval < 1) meter_interval = 1;
 
 	std::cout << "AudioEngine: rate=" << sample_rate << " period=" << period_size
-	          << " buffer=" << buffer_size << "\n";
+	          << " buffer=" << buffer_size << " format=" << (use_floats ? "float" : "int16")
+	          << "\n";
 	return true;
 }
 
@@ -116,22 +235,33 @@ void AudioEngine::audio_loop() {
 			}
 		}
 
-		for (int i = 0; i < static_cast<int>(period_size); ++i) {
-			// Apply TPDF dithering and convert to int16
-			// Scale by 1/4 of int16 to get half of LSB with rng with a width of 2 (x2 from RNG, to
-			// get 0.5 from 2, divide by 4)
-			float dither_scale = 0.25f / static_cast<float>(Config::SAMPLE_SCALE);
-			float l_noise      = (distribution(generator) + distribution(generator)) * dither_scale;
-			float r_noise      = (distribution(generator) + distribution(generator)) * dither_scale;
-			float l_dithered   = mix_l[i] + (l_noise);
-			float r_dithered   = mix_r[i] + (r_noise);
+		if (use_floats) {
+			float *f_ptr = reinterpret_cast<float *>(buf.data());
 
-			buf[i * channels + 0] =
-			    static_cast<int16_t>(std::clamp(l_dithered, -1.0f, 1.0f) * Config::SAMPLE_SCALE);
-			buf[i * channels + 1] =
-			    static_cast<int16_t>(std::clamp(r_dithered, -1.0f, 1.0f) * Config::SAMPLE_SCALE);
+			for (size_t i = 0; i < period_size; ++i) {
+				f_ptr[i * channels + 0] = std::clamp(mix_l[i], -1.0f, 1.0f);
+				f_ptr[i * channels + 1] = std::clamp(mix_r[i], -1.0f, 1.0f);
+			}
+		} else {
+			int16_t *s16_ptr = reinterpret_cast<int16_t *>(buf.data());
 
-			fft_acc.write((l_dithered + r_dithered) * 0.5f);
+			for (int i = 0; i < static_cast<int>(period_size); ++i) {
+				// Apply TPDF dithering and convert to int16
+				// Scale by 1/4 of int16 to get half of LSB with rng with a width of 2 (x2 from RNG,
+				// to get 0.5 from 2, divide by 4)
+				float dither_scale = 0.25f / static_cast<float>(Config::SAMPLE_SCALE);
+				float l_noise = (distribution(generator) + distribution(generator)) * dither_scale;
+				float r_noise = (distribution(generator) + distribution(generator)) * dither_scale;
+				float l_dithered = mix_l[i] + (l_noise);
+				float r_dithered = mix_r[i] + (r_noise);
+
+				buf[i * channels + 0] = static_cast<int16_t>(std::clamp(l_dithered, -1.0f, 1.0f)
+				                                             * Config::SAMPLE_SCALE);
+				buf[i * channels + 1] = static_cast<int16_t>(std::clamp(r_dithered, -1.0f, 1.0f)
+				                                             * Config::SAMPLE_SCALE);
+
+				fft_acc.write((l_dithered + r_dithered) * 0.5f);
+			}
 		}
 
 		snd_pcm_sframes_t written = snd_pcm_writei(handle, buf.data(), period_size);

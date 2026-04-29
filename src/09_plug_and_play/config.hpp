@@ -5,13 +5,12 @@
 namespace Config {
 // Audio
 inline unsigned int SAMPLE_RATE =
-    48000; // not constecpr because ALSA sample rate is determined at runtime
+    44100; // not constecpr because ALSA sample rate is determined at runtime
 inline constexpr unsigned int PERIOD_SIZE = 64;
 inline constexpr unsigned int BUFFER_SIZE = PERIOD_SIZE * 4;
 inline constexpr unsigned int CHANNELS    = 2;
 
 // bit depth of the DAC
-inline constexpr int BIT_DEPTH       = 16;
 inline constexpr double SAMPLE_SCALE = 32767.0;
 // static_cast<double>((1 << (BIT_DEPTH - 1)) - 1)
 //     * static_cast<double>(1u << (32 - BIT_DEPTH));

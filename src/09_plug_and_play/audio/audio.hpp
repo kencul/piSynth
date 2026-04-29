@@ -11,6 +11,7 @@
 #include <atomic>
 #include <functional>
 #include <random>
+#include <string>
 #include <thread>
 
 class AudioEngine {
@@ -18,7 +19,7 @@ public:
 	explicit AudioEngine(RingBuffer<NoteEvent, 64> &event_queue, SynthParams &params);
 	~AudioEngine();
 
-	bool open(const char *device);
+	bool open();
 	void start();
 	void stop();
 
@@ -28,6 +29,7 @@ public:
 	FftAccumulator<Config::FFT_ACC_SIZE> &get_fft_acc() { return fft_acc; }
 
 private:
+	std::string find_usb_device();
 	void audio_loop();
 	bool configure_device();
 
@@ -37,17 +39,19 @@ private:
 	std::thread thread;
 	std::atomic<bool> running {false};
 
+	bool use_floats = true;
+
 	RingBuffer<NoteEvent, 64> &event_queue;
 	SynthParams &params;
 
 	snd_pcm_uframes_t period_size = Config::PERIOD_SIZE;
 	snd_pcm_uframes_t buffer_size = Config::BUFFER_SIZE;
-	unsigned int sample_rate      = Config::SAMPLE_RATE;
+	unsigned int sample_rate      = 48000;
 	unsigned int channels         = Config::CHANNELS;
 
 	std::vector<float> mix_l;
 	std::vector<float> mix_r;
-	std::vector<int16_t> buf;
+	std::vector<int8_t> buf;
 
 	FftAccumulator<Config::FFT_ACC_SIZE> fft_acc;
 

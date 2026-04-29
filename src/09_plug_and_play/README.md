@@ -269,3 +269,167 @@ if (err == 0) {
                         << "\n";
 }
 ```
+
+## Audio Devices
+
+Next is handling audio output. Currently, the audio output has the device name, sample rate, and bit depth hard coded. If the specified device is not present when the program is run, it fails to boot.
+
+Ideally instead, the program looks for any USB output, determines the sample rate and bit depth that the device can handle, and use it.
+
+### Auto Device Find
+
+First, with the assumption that all audio output will be done by USB audio devices, I can search for any connected USB audio devices. Instead of a hard coded device name, the program iterates through all connected audio devices and selects the first one that includes `USB` in its device name:
+
+```cpp
+std::string AudioEngine::find_usb_device() {
+	int card = -1;
+	while (snd_card_next(&card) == 0 && card >= 0) {
+		char *name;
+		snd_card_get_name(card, &name);
+		std::string card_name = name;
+
+		free(name);
+
+		// Find cards with USB in the name
+		if (card_name.find("USB") != std::string::npos) {
+			return "plughw:" + std::to_string(card) + ",0";
+		}
+	}
+	return "default"; // Fallback
+}
+```
+
+The result of this function is used to select the audio output device.
+
+### plughw
+
+When selecting the audio device, it can be selected as a `plughw`. This is a virtual wrapper that automatically converts audio data automatically into a format the audio device can handle. This means, I can send buffers at float in any sample rate I desire, and ALSA will convert to a format the audio device can handle for me.
+
+It is not ideal to offload all conversions to this wrapper however. Resampling for sample rate introduces CPU overhead and aliasing, and downsampling by the wrapper to int 16 won't have the dithering that I added.
+
+Therefore, the sample rate should be properly negotiated. In `AudioEngine::configure_device()`:
+
+```cpp
+// Rate Priority: 48000 then 44100
+unsigned int rate = 48000;
+if (snd_pcm_hw_params_set_rate(handle, hw_params, rate, 0) < 0) {
+        rate = 44100;
+        if (snd_pcm_hw_params_set_rate(handle, hw_params, rate, 0) < 0) {
+                if (snd_pcm_hw_params_set_rate_near(handle, hw_params, &sample_rate, &dir) < 0) {
+                        std::cerr << "AudioEngine: could not set sample rate\n";
+                        return false; // Couldn't set sample rate
+                }
+        }
+}
+this->sample_rate = rate;
+```
+
+It first tries to set the sample rate to 48k, then 44.1k, then whatever is closest to 44.1k. The set sample rate is then saved to the member variable to be shared throughout the program.
+
+For the bit depth, the ideal situation is to use floats. Especially for 24 bit devices, there are devices that need 3 byte packets and some that need 4 byte packets. The 3 byte format is especially difficult to handle, as there is no native C++ solution for it.
+
+Therefore, offloading the conversion from floats to 32 bit and 24 bit relieves a lot of headache.
+
+However, I want to handle the conversion to int16 myself, as I want apply dithering to this case. The lower bit depth makes dithering a necessity, as the noise is too noticable. In `AudioEngine::configure_device()`:
+
+```cpp
+// Check for high-bitrate support to decide on float vs dithered int16
+if (snd_pcm_hw_params_test_format(handle, hw_params, SND_PCM_FORMAT_S32_LE) == 0
+        || snd_pcm_hw_params_test_format(handle, hw_params, SND_PCM_FORMAT_S24_LE) == 0
+        || snd_pcm_hw_params_test_format(handle, hw_params, SND_PCM_FORMAT_S24_3LE) == 0) {
+        // Hardware is high-res; we will provide floats and let plughw convert
+        snd_pcm_hw_params_set_format(handle, hw_params, SND_PCM_FORMAT_FLOAT_LE);
+        use_floats = true;
+} else {
+        // Fallback to 16-bit; we will dither manually in the loop
+        snd_pcm_hw_params_set_format(handle, hw_params, SND_PCM_FORMAT_S16_LE);
+        use_floats = false;
+}
+```
+
+Then in `AudioEngine::audio_loop()`, send plain floats or convert to int16 with dithering based on the `use_floats` flag:
+
+```cpp
+if (use_floats) {
+        float *f_ptr = reinterpret_cast<float *>(buf.data());
+
+        for (size_t i = 0; i < period_size; ++i) {
+                f_ptr[i * channels + 0] = std::clamp(mix_l[i], -1.0f, 1.0f);
+                f_ptr[i * channels + 1] = std::clamp(mix_r[i], -1.0f, 1.0f);
+        }
+} else {
+        int16_t *s16_ptr = reinterpret_cast<int16_t *>(buf.data());
+
+        for (int i = 0; i < static_cast<int>(period_size); ++i) {
+                // Apply TPDF dithering and convert to int16
+                // Scale by 1/4 of int16 to get half of LSB with rng with a width of 2 (x2 from RNG,
+                // to get 0.5 from 2, divide by 4)
+                float dither_scale = 0.25f / static_cast<float>(Config::SAMPLE_SCALE);
+                float l_noise = (distribution(generator) + distribution(generator)) * dither_scale;
+                float r_noise = (distribution(generator) + distribution(generator)) * dither_scale;
+                float l_dithered = mix_l[i] + (l_noise);
+                float r_dithered = mix_r[i] + (r_noise);
+
+                buf[i * channels + 0] = static_cast<int16_t>(std::clamp(l_dithered, -1.0f, 1.0f)
+                                                                * Config::SAMPLE_SCALE);
+                buf[i * channels + 1] = static_cast<int16_t>(std::clamp(r_dithered, -1.0f, 1.0f)
+                                                                * Config::SAMPLE_SCALE);
+
+                fft_acc.write((l_dithered + r_dithered) * 0.5f);
+        }
+}
+```
+
+`buf` is a vector of int8, that is reinterpreted to float or int16 based on the flag.
+
+### Refining Finding Audio Devices
+
+There were some issues with the device finding process.
+
+First, searching for USB in the name of the device was hit or miss. For instance, my audio interface that I usually use for my PC doesn't have USB in its name, meaning it isn't used by the program.
+
+The solution to this problem was to get the driver info. This involves getting the snd_ctl for each card, which contains metadata. Then, within the metadata, the driver name can be fetched. If this driver name is "USB-Audio", its a USB audio device.
+
+```cpp
+snd_ctl_t *ctl;
+std::string card_id = "hw:" + std::to_string(card);
+
+if (snd_ctl_open(&ctl, card_id.c_str(), 0) < 0) continue;
+
+snd_ctl_card_info_t *info;
+snd_ctl_card_info_alloca(&info);
+
+if (snd_ctl_card_info(ctl, info) >= 0) {
+        std::string driver = snd_ctl_card_info_get_driver(info);
+
+        // Check for USB-Audio driver
+        if (driver.find("USB-Audio") != std::string::npos){
+```
+
+However, MIDI devices are also classified as USB audio devices. To avoid attempting to connect audio to MIDI devices, the program iterates through the devices in the card to look for PCM playback streams. This way, a speaker/interface can be distinguished from a MIDI controller.
+
+```cpp
+// Query the card for PCM playback devices
+int dev           = -1;
+bool has_playback = false;
+while (snd_ctl_pcm_next_device(ctl, &dev) == 0 && dev >= 0) {
+        snd_pcm_info_t *pcm_info;
+        snd_pcm_info_alloca(&pcm_info);
+        snd_pcm_info_set_device(pcm_info, dev);
+        snd_pcm_info_set_subdevice(pcm_info, 0);
+        snd_pcm_info_set_stream(pcm_info, SND_PCM_STREAM_PLAYBACK);
+
+        if (snd_ctl_pcm_info(ctl, pcm_info) >= 0) {
+                has_playback = true;
+                break;
+        }
+}
+
+if (!has_playback) {
+        snd_ctl_close(ctl);
+        continue; // Skip MIDI-only "Audio" devices
+}
+```
+
+This process iterates through all available sound cards until it finds a valid output or it reaches the end of the list.
+
