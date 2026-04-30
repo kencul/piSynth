@@ -573,3 +573,171 @@ std::string MidiReader::get_connected_names() {
 
 This function filters the clients that send MIDI to the synth, and creates a comma separated list of MIDI device names. This list is then broadcast in JSON.
 
+## Presets
+
+The final feature to add to the synth is a preset functionality.
+
+This is a way for me and users to save parameter values to be loaded back at a later time. This is important not just for usability of the synth, but for quickly showing off the synth with factory presets.
+
+All that is needed to save presets is to put all parameter ID's and its values in a JSON file. These JSON files live in a `/presets` directory next to the program executable.
+
+`synth_params.cpp` must have functions to save and load presets. Saving the presets takes the name of the preset provided by the user. The contents of the JSON is the param ID and the normalized value:
+
+```cpp
+void SynthParams::save_preset(const std::string &name) {
+	fs::create_directories("presets");
+	save_to_file("presets/" + name + ".json");
+}
+
+void SynthParams::save_to_file(const std::string &path) {
+	std::ofstream f(path);
+	if (!f) return;
+
+	f << "{\n";
+	for (int i = 0; i < COUNT; ++i) {
+		auto id = static_cast<ParamId>(i);
+		f << "  \"" << i << "\": " << get_normalized(id) << (i < COUNT - 1 ? ",\n" : "\n");
+	}
+	f << "}";
+	std::cout << "SynthParams: Saved to " << path << "\n";
+}
+```
+
+Loading the presets takes a preset name, checks if the preset exists, then loads all the values from the JSON:
+
+```cpp
+void SynthParams::load_preset(const std::string &name) {
+	load_from_file("presets/" + name + ".json");
+}
+
+void SynthParams::load_from_file(const std::string &path) {
+	std::ifstream f(path);
+	if (!f) {
+		std::cout << "SynthParams: No file found at " << path << "\n";
+		return;
+	}
+
+	char c;
+	int id;
+	float val;
+	while (f >> c) {
+		if (c == '"') {
+			f >> id;
+			f.ignore(256, ':');
+			f >> val;
+			if (id >= 0 && id < COUNT) { set_param(static_cast<ParamId>(id), val); }
+		}
+	}
+	std::cout << "SynthParams: Loaded from " << path << "\n";
+}
+```
+
+The user should be able to reset to the default values. By moving the logic to set the default value of the parameters into a separate function that can be triggered by the web UI:
+
+```cpp
+void SynthParams::set_to_default(ParamId id) {
+	int idx = static_cast<int>(id);
+	auto &d = descs[idx];
+	float t;
+
+	switch (d.scale) {
+		case ParamScale::Exponential:
+			t = std::log(d.default_value / d.min) / std::log(d.max / d.min);
+			break;
+		case ParamScale::Log: {
+			float norm = (d.default_value - d.min) / (d.max - d.min);
+			t          = (std::pow(10.0f, norm) - 1.0f) / 9.0f;
+			break;
+		}
+		case ParamScale::Power: {
+			float norm = (d.default_value - d.min) / (d.max - d.min);
+			t          = std::sqrt(norm);
+			break;
+		}
+		default: t = (d.default_value - d.min) / (d.max - d.min); break;
+	}
+	params[idx].store(std::clamp(t, 0.0f, 1.0f));
+}
+```
+
+There must also be functionality to delete presets as well:
+
+```cpp
+void SynthParams::delete_preset(const std::string &name) {
+	fs::path p = "presets/" + name + ".json";
+	if (fs::exists(p)) {
+		fs::remove(p);
+		std::cout << "SynthParams: Deleted " << p << "\n";
+	}
+}
+```
+
+For the UI to be able to see the available presets, there must be a way to get the list of presets:
+
+```cpp
+std::vector<std::string> SynthParams::get_preset_list() {
+	std::vector<std::string> presets;
+	if (!fs::exists("presets")) return presets;
+
+	for (const auto &entry : fs::directory_iterator("presets")) {
+		if (entry.path().extension() == ".json") {
+			presets.push_back(entry.path().stem().string());
+		}
+	}
+	return presets;
+}
+```
+
+All of these functions are exposed to web UI messages so the JS of the web UI can trigger these calls. This is done in `main.cpp`.
+
+A lambda function to broadcast the list of presets:
+
+```cpp
+auto broadcast_presets = [&web, &params]() {
+        auto list = params.get_preset_list();
+        web.broadcast(PresetListMsg {list});
+};
+```
+
+Then setting up callback functions for all 4 functionalities to be sent as messages from the UI:
+
+```cpp
+dispatcher.on("reset", [&params, &web](std::string_view /*msg*/) {
+        params.reset_to_defaults();
+
+        // Broadcast the new values to the UI so the knobs update visually
+        for (int i = 0; i < static_cast<int>(SynthParams::ParamId::COUNT); ++i) {
+                auto id = static_cast<SynthParams::ParamId>(i);
+                auto d  = params.descriptor(id);
+                web.broadcast(
+                        ParamMsg {id, params.get_normalized(id), params.get_value(id), d.name, d.unit});
+        }
+});
+
+dispatcher.on("load_preset", [&params, &web, &broadcast_presets](std::string_view msg) {
+        std::string name = MsgParser::extract_string(msg, "name"); // See note below
+        params.load_preset(name);
+        for (int i = 0; i < static_cast<int>(SynthParams::ParamId::COUNT); ++i) {
+                auto id = static_cast<SynthParams::ParamId>(i);
+                auto d  = params.descriptor(id);
+                web.broadcast(
+                        ParamMsg {id, params.get_normalized(id), params.get_value(id), d.name, d.unit});
+        }
+});
+
+dispatcher.on("save_preset", [&params, &broadcast_presets](std::string_view msg) {
+        std::string name = MsgParser::extract_string(msg, "name");
+        params.save_preset(name);
+        broadcast_presets(); // Refresh UI list for everyone
+});
+
+dispatcher.on("delete_preset", [&params, &broadcast_presets](std::string_view msg) {
+        std::string name = MsgParser::extract_string(msg, "name");
+        if (!name.empty()) {
+                params.delete_preset(name);
+                broadcast_presets(); // Update the UI list
+        }
+});
+```
+
+The web UI then has a drop down with all the available presets, and buttons to add and delete presets, as well as resetting to default values.
