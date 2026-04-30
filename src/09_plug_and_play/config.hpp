@@ -10,18 +10,6 @@ inline constexpr unsigned int PERIOD_SIZE = 64;
 inline constexpr unsigned int BUFFER_SIZE = PERIOD_SIZE * 4;
 inline constexpr unsigned int CHANNELS    = 2;
 
-// bit depth of the DAC
-inline constexpr double SAMPLE_SCALE = 32767.0;
-// static_cast<double>((1 << (BIT_DEPTH - 1)) - 1)
-//     * static_cast<double>(1u << (32 - BIT_DEPTH));
-
-// Devices
-inline constexpr const char *AUDIO_DEVICE                         = "hw:A";
-inline constexpr std::initializer_list<const char *> MIDI_DEVICES = {
-    "KOMPLETE KONTROL",
-    "Teensy MIDI",
-};
-
 // ------- Synth Parameters -------
 
 inline constexpr int MAX_VOICES = 8;
@@ -84,4 +72,8 @@ inline constexpr float REVERB_MAX_CUTOFF_HZ = 10000.0f;
 
 inline constexpr int UI_UPDATES_PER_SECOND = 60;
 inline constexpr int UI_PORT               = 9002;
+
+// ------- State -------
+
+inline constexpr const char *STATE_FILE = "synth_state.json";
 } // namespace Config

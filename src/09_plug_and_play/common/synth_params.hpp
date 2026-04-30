@@ -2,7 +2,9 @@
 #include "../config.hpp"
 #include <array>
 #include <atomic>
+#include <fstream>
 #include <optional>
+#include <sstream>
 #include <unordered_map>
 
 class SynthParams {
@@ -56,7 +58,14 @@ public:
 	// called by the web thread to apply an inbound slider change
 	void set_param(ParamId id, float normalized);
 
+	void save_state(const std::string &filename);
+	void load_state(const std::string &filename);
+
+	void reset_to_defaults();
+
 private:
+	void set_to_default(ParamId id);
+
 	static constexpr int COUNT = static_cast<int>(ParamId::COUNT);
 
 	std::array<std::atomic<float>, COUNT> params = {};

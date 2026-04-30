@@ -172,7 +172,7 @@ bool AudioEngine::configure_device() {
 
 	std::cout << "AudioEngine: rate=" << sample_rate << " period=" << period_size
 	          << " buffer=" << buffer_size << " format=" << (use_floats ? "float" : "int16")
-	          << " UI refresh rate:" << meter_interval << "\n";	
+	          << " UI refresh rate:" << meter_interval << "\n";
 	return true;
 }
 
@@ -257,16 +257,16 @@ void AudioEngine::audio_loop() {
 				// Apply TPDF dithering and convert to int16
 				// Scale by 1/4 of int16 to get half of LSB with rng with a width of 2 (x2 from RNG,
 				// to get 0.5 from 2, divide by 4)
-				float dither_scale = 0.25f / static_cast<float>(Config::SAMPLE_SCALE);
+				float dither_scale = 0.25f / 32767.0f;
 				float l_noise = (distribution(generator) + distribution(generator)) * dither_scale;
 				float r_noise = (distribution(generator) + distribution(generator)) * dither_scale;
 				float l_dithered = mix_l[i] + (l_noise);
 				float r_dithered = mix_r[i] + (r_noise);
 
-				buf[i * channels + 0] = static_cast<int16_t>(std::clamp(l_dithered, -1.0f, 1.0f)
-				                                             * Config::SAMPLE_SCALE);
-				buf[i * channels + 1] = static_cast<int16_t>(std::clamp(r_dithered, -1.0f, 1.0f)
-				                                             * Config::SAMPLE_SCALE);
+				buf[i * channels + 0] =
+				    static_cast<int16_t>(std::clamp(l_dithered, -1.0f, 1.0f) * 32767.0f);
+				buf[i * channels + 1] =
+				    static_cast<int16_t>(std::clamp(r_dithered, -1.0f, 1.0f) * 32767.0f);
 
 				fft_acc.write((l_dithered + r_dithered) * 0.5f);
 			}

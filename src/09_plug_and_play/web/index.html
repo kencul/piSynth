@@ -206,6 +206,25 @@ main {
   white-space: nowrap;
   font-family: monospace;
 }
+
+#reset-btn {
+  background: #111;
+  border: 1px solid #444;
+  color: #aaa;
+  padding: 6px 12px;
+  cursor: pointer;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  text-transform: uppercase;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+#reset-btn:hover {
+  background: #222;
+  border-color: #666;
+  color: #fff;
+}
 </style>
 </head>
 
@@ -213,6 +232,7 @@ main {
 <header>
   <h1>Pluck Synth</h1>
   <div class="header-right">
+    <button id="reset-btn">Reset</button>
     <div class="device-stat" id="audio-stat">
       Audio Out
       <div class="tooltip" id="audio-out">None</div>
@@ -593,6 +613,10 @@ ws.onmessage = ({ data }) => {
     const midiStat = $('midi-stat');
     midiStat.className = `device-stat ${devices.length > 0 ? 'connected-device' : 'disconnected-device'}`;
   }
+};
+
+$('reset-btn').onclick = () => {
+  ws.send(JSON.stringify({ type: 'reset' }));
 };
 
 requestAnimationFrame(draw);

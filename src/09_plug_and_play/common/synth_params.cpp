@@ -1,6 +1,8 @@
 #include "synth_params.hpp"
+#include "../web/msg_parser.hpp"
 #include <algorithm>
 #include <cmath>
+#include <iostream>
 
 SynthParams::SynthParams() {
 	static_assert(std::atomic<float>::is_always_lock_free,
@@ -51,28 +53,7 @@ SynthParams::SynthParams() {
 	    0.0f, 1.0f, 0.25f, ParamScale::Linear, "Delay Mix", ""};
 
 	// initialize param values to defaults
-	for (int i = 0; i < COUNT; ++i) {
-		auto &d = descs[i];
-		float t;
-		switch (d.scale) {
-			case ParamScale::Exponential:
-				t = std::log(d.default_value / d.min) / std::log(d.max / d.min);
-				break;
-			case ParamScale::Log: {
-				// invert: log1p(t*9)/log(10) = normalized → solve for t
-				float norm = (d.default_value - d.min) / (d.max - d.min);
-				t          = (std::pow(10.0f, norm) - 1.0f) / 9.0f;
-				break;
-			}
-			case ParamScale::Power: {
-				float norm = (d.default_value - d.min) / (d.max - d.min);
-				t          = std::sqrt(norm);
-				break;
-			}
-			default: t = (d.default_value - d.min) / (d.max - d.min); break;
-		}
-		params[i].store(std::clamp(t, 0.0f, 1.0f));
-	}
+	for (int i = 0; i < COUNT; ++i) { set_to_default(static_cast<ParamId>(i)); }
 
 	cc_map = {
 	    {14, ParamId::MasterGain},
@@ -141,4 +122,69 @@ std::optional<SynthParams::ParamId> SynthParams::cc_to_param(int cc) const {
 
 void SynthParams::set_param(ParamId id, float normalized) {
 	params[static_cast<int>(id)].store(std::clamp(normalized, 0.0f, 1.0f));
+}
+
+void SynthParams::save_state(const std::string &filename) {
+	std::ofstream f(filename);
+	if (!f) return;
+
+	f << "{\n";
+	for (int i = 0; i < COUNT; ++i) {
+		auto id = static_cast<ParamId>(i);
+		f << "  \"" << i << "\": " << get_normalized(id) << (i < COUNT - 1 ? ",\n" : "\n");
+	}
+	f << "}";
+
+	std::cout << "SynthParams: State saved to " << filename << "\n";
+}
+
+void SynthParams::load_state(const std::string &filename) {
+	std::ifstream f(filename);
+	if (!f) return;
+
+	char c;
+	int id;
+	float val;
+
+	// Extract characters and values sequentially
+	while (f >> c) {
+		if (c == '"') {
+			f >> id;            // Reads the numeric index
+			f.ignore(256, ':'); // Skip to the colon
+			f >> val;           // Reads the float value
+
+			if (id >= 0 && id < COUNT) { set_param(static_cast<ParamId>(id), val); }
+		}
+	}
+
+	std::cout << "SynthParams: State loaded from " << filename << "\n";
+}
+
+void SynthParams::set_to_default(ParamId id) {
+	int idx = static_cast<int>(id);
+	auto &d = descs[idx];
+	float t;
+
+	switch (d.scale) {
+		case ParamScale::Exponential:
+			t = std::log(d.default_value / d.min) / std::log(d.max / d.min);
+			break;
+		case ParamScale::Log: {
+			float norm = (d.default_value - d.min) / (d.max - d.min);
+			t          = (std::pow(10.0f, norm) - 1.0f) / 9.0f;
+			break;
+		}
+		case ParamScale::Power: {
+			float norm = (d.default_value - d.min) / (d.max - d.min);
+			t          = std::sqrt(norm);
+			break;
+		}
+		default: t = (d.default_value - d.min) / (d.max - d.min); break;
+	}
+	params[idx].store(std::clamp(t, 0.0f, 1.0f));
+}
+
+void SynthParams::reset_to_defaults() {
+	for (int i = 0; i < COUNT; ++i) { set_to_default(static_cast<ParamId>(i)); }
+	std::cout << "SynthParams: Reset to default values\n";
 }

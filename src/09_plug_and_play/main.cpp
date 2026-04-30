@@ -35,6 +35,8 @@ int main() {
 
 	if (!midi.open()) return 1;
 
+	params.load_state(Config::STATE_FILE);
+
 	// audio thread -> web: meter data at ~30fps
 	audio.on_meter = [&web](float rl, float rr, float pl, float pr) {
 		web.broadcast(MeterMsg {rl, rr, pl, pr});
@@ -68,6 +70,18 @@ int main() {
 		web.broadcast(ParamMsg {id, value, params.get_value(id), d.name, d.unit});
 	});
 
+	dispatcher.on("reset", [&params, &web](std::string_view /*msg*/) {
+		params.reset_to_defaults();
+
+		// Broadcast the new values to the UI so the knobs update visually
+		for (int i = 0; i < static_cast<int>(SynthParams::ParamId::COUNT); ++i) {
+			auto id = static_cast<SynthParams::ParamId>(i);
+			auto d  = params.descriptor(id);
+			web.broadcast(
+			    ParamMsg {id, params.get_normalized(id), params.get_value(id), d.name, d.unit});
+		}
+	});
+
 	std::signal(SIGINT, on_signal);
 	std::signal(SIGTERM, on_signal);
 
@@ -93,6 +107,8 @@ int main() {
 		}
 	}
 	std::cout << "\nShutting down...\n";
+
+	params.save_state(Config::STATE_FILE);
 
 	audio.stop();
 	midi.stop();
