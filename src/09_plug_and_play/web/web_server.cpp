@@ -71,6 +71,7 @@ void WebServer::send_initial_state(WS *ws) {
 
 	ws->send(last_midi_device_msg.serialize(), uWS::OpCode::TEXT);
 	ws->send(last_audio_device_msg.serialize(), uWS::OpCode::TEXT);
+	ws->send(PresetListMsg {params.get_preset_list()}.serialize(), uWS::OpCode::TEXT);
 }
 
 void WebServer::run(int port) {

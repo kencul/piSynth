@@ -198,3 +198,23 @@ void SynthParams::reset_to_defaults() {
 	for (int i = 0; i < COUNT; ++i) { set_to_default(static_cast<ParamId>(i)); }
 	std::cout << "SynthParams: Reset to default values\n";
 }
+
+std::vector<std::string> SynthParams::get_preset_list() {
+	std::vector<std::string> presets;
+	if (!fs::exists("presets")) return presets;
+
+	for (const auto &entry : fs::directory_iterator("presets")) {
+		if (entry.path().extension() == ".json") {
+			presets.push_back(entry.path().stem().string());
+		}
+	}
+	return presets;
+}
+
+void SynthParams::delete_preset(const std::string &name) {
+	fs::path p = "presets/" + name + ".json";
+	if (fs::exists(p)) {
+		fs::remove(p);
+		std::cout << "SynthParams: Deleted " << p << "\n";
+	}
+}

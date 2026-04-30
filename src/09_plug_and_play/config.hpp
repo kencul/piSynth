@@ -72,8 +72,4 @@ inline constexpr float REVERB_MAX_CUTOFF_HZ = 10000.0f;
 
 inline constexpr int UI_UPDATES_PER_SECOND = 60;
 inline constexpr int UI_PORT               = 9002;
-
-// ------- State -------
-
-inline constexpr const char *STATE_FILE = "synth_state";
 } // namespace Config

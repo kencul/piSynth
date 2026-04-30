@@ -272,12 +272,13 @@ main {
 <body>
 <header>
   <h1>Pluck Synth</h1>
-    <div class="header-right">
-      <div class="preset-controls">
-      <input type="text" id="preset-name" placeholder="Preset name..." maxlength="16">
-      <button id="save-btn">Save</button>
+  <div class="header-right">
+    <div class="preset-controls">
+        <select id="preset-select" onchange="handlePresetLoad(this.value)"></select>
+        <button id="save-btn">Save</button>
+        <button id="delete-btn">Delete</button>
+        <button id="reset-btn">Reset</button>
     </div>
-    <button id="reset-btn">Reset</button>
     <div class="device-stat" id="audio-stat">
       Audio Out
       <div class="tooltip" id="audio-out">None</div>
@@ -287,7 +288,7 @@ main {
       <div class="tooltip" id="midi-in">None</div>
     </div>
     <span id="status" class="connecting">Connecting&hellip;</span>
-  </div>
+  </div> 
 </header>
 
 <div id="string-panel">
@@ -362,6 +363,19 @@ const initSg = (w, h) => {
   sgCtx = sgCanvas.getContext('2d');
   sgCtx.fillStyle = '#0a0a0a';
   sgCtx.fillRect(0, 0, w, h);
+};
+
+// ── Preset Management ──
+let lastSavedPreset = null;
+
+const clearPresetSelection = () => {
+    $('preset-select').selectedIndex = 0;
+};
+
+const handlePresetLoad = (name) => {
+  if (name && name.length > 0) {
+      ws.send(JSON.stringify({ type: 'load_preset', name: name }));
+  }
 };
 
 // ── Initialization & Layout ──
@@ -631,7 +645,15 @@ ws.onmessage = ({ data }) => {
       k = knobs[msg.id] = { cvs: div.querySelector('canvas'), el: div.querySelector('.knob-val'), val: msg.normalized };
       k.cvs.width = k.cvs.clientWidth * dpr(); k.cvs.height = k.cvs.clientWidth * dpr();
       let dV = 0, dY = 0;
-      div.onpointerdown = e => { div.setPointerCapture(e.pointerId); dY = e.clientY; dV = k.val; e.preventDefault(); };
+      div.onpointerdown = e => {
+        console.log('Pointer down on knob:', msg.name);
+        div.setPointerCapture(e.pointerId); 
+        dY = e.clientY; dV = k.val; 
+        e.preventDefault(); 
+        if ($('preset-select').selectedIndex !== -1) {
+          clearPresetSelection();
+        }
+      };
       div.onpointermove = e => {
         if (!div.hasPointerCapture(e.pointerId)) return;
         k.val = Math.min(1, Math.max(0, dV + (dY - e.clientY)/200));
@@ -657,19 +679,60 @@ ws.onmessage = ({ data }) => {
     
     const midiStat = $('midi-stat');
     midiStat.className = `device-stat ${devices.length > 0 ? 'connected-device' : 'disconnected-device'}`;
+  } else if (msg.type === 'preset_list') {
+    const select = $('preset-select');
+    select.innerHTML = '';
+
+    const placeholder = document.createElement('option');
+    placeholder.textContent = 'Select Preset...';
+    placeholder.value = ''; // Empty value for logic checks
+    placeholder.disabled = true;
+    placeholder.selected = true; // Set as selected by default
+    select.appendChild(placeholder);
+
+    if (msg.presets.length === 0) {
+        const opt = document.createElement('option');
+        opt.textContent = 'No Presets';
+        opt.disabled = true;
+        select.appendChild(opt);
+    } else {
+        msg.presets.forEach(name => {
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = name;
+            select.appendChild(opt);
+        });
+
+        // Select the preset if we just saved it
+        if (lastSavedPreset && msg.presets.includes(lastSavedPreset)) {
+            select.value = lastSavedPreset;
+            lastSavedPreset = null; // Clear the flag
+        }
+    }
   }
 };
 
 $('reset-btn').onclick = () => {
+  clearPresetSelection();
   ws.send(JSON.stringify({ type: 'reset' }));
 };
 
 $('save-btn').onclick = () => {
-  const name = $('preset-name').value.trim();
-  if (name) {
-    ws.send(JSON.stringify({ type: 'save_preset', name: name }));
-    $('preset-name').value = ''; // Clear input after saving
-  }
+    const name = window.prompt("Enter preset name:");
+    if (name && name.trim().length > 0) {
+        lastSavedPreset = name.trim();
+        ws.send(JSON.stringify({ 
+            type: 'save_preset', 
+            name: lastSavedPreset 
+        }));
+    }
+};
+
+$('delete-btn').onclick = () => {
+    const name = $('preset-select').value;
+    if (name && confirm(`Are you sure you want to delete "${name}"?`)) {
+        ws.send(JSON.stringify({ type: 'delete_preset', name: name }));
+    }
 };
 
 requestAnimationFrame(draw);

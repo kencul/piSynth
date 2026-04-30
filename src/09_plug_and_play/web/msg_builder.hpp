@@ -50,6 +50,19 @@ public:
 		return *this;
 	}
 
+	JsonMsg &array(std::string_view key, const std::vector<std::string> &data) {
+		append_key(key);
+		buf += '[';
+		for (size_t i = 0; i < data.size(); ++i) {
+			if (i > 0) buf += ',';
+			buf += '"';
+			buf += data[i];
+			buf += '"';
+		}
+		buf += ']';
+		return *this;
+	}
+
 	std::string str() {
 		buf += '}';
 		return std::move(buf);

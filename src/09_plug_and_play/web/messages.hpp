@@ -93,3 +93,9 @@ struct AudioDeviceMsg {
 		return JsonMsg("audioDevice").field("audio", audio_device).str();
 	}
 };
+
+struct PresetListMsg {
+	std::vector<std::string> presets;
+
+	std::string serialize() const { return JsonMsg("preset_list").array("presets", presets).str(); }
+};

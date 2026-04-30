@@ -6,6 +6,7 @@
 #include <optional>
 #include <sstream>
 #include <unordered_map>
+#include <vector>
 
 class SynthParams {
 public:
@@ -60,8 +61,10 @@ public:
 
 	void save_preset(const std::string &name);
 	void load_preset(const std::string &name);
+	void delete_preset(const std::string &name);
 
 	void reset_to_defaults();
+	std::vector<std::string> get_preset_list();
 
 private:
 	void save_to_file(const std::string &path);

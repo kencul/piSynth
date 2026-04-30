@@ -33,9 +33,12 @@ int main() {
 		web.broadcast_audio_device(audio.get_device_name());
 	};
 
-	if (!midi.open()) return 1;
+	auto broadcast_presets = [&web, &params]() {
+		auto list = params.get_preset_list();
+		web.broadcast(PresetListMsg {list});
+	};
 
-	params.load_preset(Config::STATE_FILE);
+	if (!midi.open()) return 1;
 
 	// audio thread -> web: meter data at ~30fps
 	audio.on_meter = [&web](float rl, float rr, float pl, float pr) {
@@ -82,9 +85,29 @@ int main() {
 		}
 	});
 
-	dispatcher.on("save_preset", [&params](std::string_view msg) {
+	dispatcher.on("load_preset", [&params, &web, &broadcast_presets](std::string_view msg) {
+		std::string name = MsgParser::extract_string(msg, "name"); // See note below
+		params.load_preset(name);
+		for (int i = 0; i < static_cast<int>(SynthParams::ParamId::COUNT); ++i) {
+			auto id = static_cast<SynthParams::ParamId>(i);
+			auto d  = params.descriptor(id);
+			web.broadcast(
+			    ParamMsg {id, params.get_normalized(id), params.get_value(id), d.name, d.unit});
+		}
+	});
+
+	dispatcher.on("save_preset", [&params, &broadcast_presets](std::string_view msg) {
 		std::string name = MsgParser::extract_string(msg, "name");
-		if (!name.empty()) params.save_preset(name);
+		params.save_preset(name);
+		broadcast_presets(); // Refresh UI list for everyone
+	});
+
+	dispatcher.on("delete_preset", [&params, &broadcast_presets](std::string_view msg) {
+		std::string name = MsgParser::extract_string(msg, "name");
+		if (!name.empty()) {
+			params.delete_preset(name);
+			broadcast_presets(); // Update the UI list
+		}
 	});
 
 	std::signal(SIGINT, on_signal);
@@ -112,8 +135,6 @@ int main() {
 		}
 	}
 	std::cout << "\nShutting down...\n";
-
-	params.save_preset(Config::STATE_FILE);
 
 	audio.stop();
 	midi.stop();
