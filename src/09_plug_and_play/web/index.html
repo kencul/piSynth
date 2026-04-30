@@ -5,43 +5,77 @@
 <title>Pluck Synth</title>
 <style>
 /* ── Base & Layout ── */
+:root {
+  --bg-main: #111;
+  --bg-panel: #181818;
+  --bg-header: #0d0d0d;
+  --border-color: #333;
+  --border-light: #444;
+  --text-main: #aaa;
+  --text-bright: #fff;
+  --accent: #55aaff;
+  --accent-hover: #77bbff;
+  --danger: #fd9191;
+  --success: #33aa55;
+  --radius: 4px;
+}
+
+/* Base and Layout */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
   font-family: 'Courier New', monospace;
-  background: #111;
-  color: #aaa;
+  background: var(--bg-main);
+  color: var(--text-main);
   display: flex;
   flex-direction: column;
   height: 100vh;
   overflow: hidden;
 }
 
-/* ── Header ── */
+/* Common UI Elements */
+.ui-control {
+  background: var(--bg-main);
+  border: 1px solid var(--border-light);
+  color: var(--text-bright);
+  padding: 6px 12px;
+  border-radius: var(--radius);
+  font-family: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: none;
+}
+
+.ui-control:hover { border-color: var(--text-main); }
+
+/* Header */
 header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 10px 16px;
-  border-bottom: 1px solid #1c1c1c;
-  background: #0d0d0d;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-header);
 }
 
 header h1 {
   font-size: clamp(16px, 2vw, 24px);
   letter-spacing: 3px;
   text-transform: uppercase;
-  color: #fff;
+  color: var(--text-bright);
   font-weight: normal;
 }
 
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 24px;
-}
+.header-right { display: flex; align-items: center; gap: 24px; }
 
-/* ── Header Indicators & Tooltips ── */
+/* Preset Controls */
+.preset-controls { display: flex; gap: 8px; align-items: center; }
+
+#preset-select { width: 180px; }
+#delete-btn { color: var(--danger); }
+
+/* Status Indicators */
 .device-stat, #status {
   font-size: 16px;
   font-weight: bold;
@@ -50,15 +84,11 @@ header h1 {
   white-space: nowrap;
 }
 
-.device-stat {
-  position: relative;
-  cursor: help;
-  transition: color 0.2s;
-}
+.device-stat { position: relative; cursor: help; transition: color 0.2s; }
 
-.connected-device, #status.connected { color: #33aa55; }
-.disconnected-device, #status.disconnected { color: #883333; }
-.connecting { color: #aaa; }
+.connected-device, #status.connected { color: var(--success); }
+.disconnected-device, #status.disconnected { color: var(--danger); }
+.connecting { color: var(--text-main); }
 
 .tooltip {
   visibility: hidden;
@@ -66,74 +96,59 @@ header h1 {
   position: absolute;
   top: 150%;
   right: 0;
-  background: #222;
-  color: #55aaff;
+  background: var(--bg-panel);
+  color: var(--accent);
   padding: 8px 12px;
-  border: 1px solid #444;
-  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
   font-size: 16px;
   z-index: 100;
   transition: opacity 0.2s;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.8);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.8);
   text-transform: none;
   letter-spacing: 0;
   text-align: right;
 }
 
-.device-stat:hover .tooltip {
-  visibility: visible;
-  opacity: 1;
-}
+.device-stat:hover .tooltip { visibility: visible; opacity: 1; }
 
-/* ── String Visualizer ── */
+/* String Visualizer */
 #string-panel {
   width: 100%;
   height: 120px;
-  background: #0d0d0d;
-  border-bottom: 1px solid #1c1c1c;
+  background: var(--bg-header);
+  border-bottom: 1px solid var(--border-color);
   flex-shrink: 0;
 }
 
-#string-canvas {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
+#string-canvas { display: block; width: 100%; height: 100%; }
 
-/* ── Main Layout ── */
-main {
-  display: flex;
-  flex: 1;
-  overflow: hidden;
-}
+/* Main Layout */
+main { display: flex; flex: 1; overflow: hidden; }
 
-/* ── Meter ── */
+/* Meter */
 #meter-panel {
   display: flex;
   flex-direction: column;
   align-items: center;
   padding: 14px 10px 10px;
-  border-right: 1px solid #1c1c1c;
-  background: #0d0d0d;
-  width: clamp(100px, 12vw, 150px); 
+  border-right: 1px solid var(--border-color);
+  background: var(--bg-header);
+  width: clamp(100px, 12vw, 150px);
 }
 
 #meter-title {
   font-size: 13px;
-  color: #fff;
+  color: var(--text-bright);
   text-transform: uppercase;
   letter-spacing: 2px;
   margin-bottom: 8px;
   font-weight: bold;
 }
 
-#meter {
-  width: 100%;
-  height: 100%;
-  flex: 1;
-}
+#meter { width: 100%; height: 100%; flex: 1; }
 
-/* ── Params Panel ── */
+/* Parameters Panel */
 #params-panel {
   flex: 1;
   overflow-y: auto;
@@ -145,26 +160,26 @@ main {
 }
 
 #params-panel::-webkit-scrollbar { width: 4px; }
-#params-panel::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+#params-panel::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 2px; }
 
 .param-group {
-  border: 1px solid #333;
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   padding: 20px;
-  background: #181818;
+  background: var(--bg-panel);
   display: flex;
   flex-direction: column;
   width: fit-content;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
 }
 
 .param-group h2 {
   font-size: clamp(13px, 1.3vw, 16px);
-  color: #fff;
+  color: var(--text-bright);
   text-transform: uppercase;
   letter-spacing: 2px;
   margin-bottom: 15px;
-  border-bottom: 2px solid #333;
+  border-bottom: 2px solid var(--border-color);
   padding-bottom: 8px;
   font-weight: bold;
 }
@@ -172,7 +187,7 @@ main {
 .group-grid { display: flex; gap: 20px; }
 .orphan-container { display: flex; gap: 20px; padding-top: 35px; }
 
-/* ── Knobs ── */
+/* Knobs */
 .knob {
   display: flex;
   flex-direction: column;
@@ -183,15 +198,11 @@ main {
   width: clamp(80px, 10vw, 120px);
 }
 
-.knob canvas {
-  display: block;
-  width: 100%;
-  aspect-ratio: 1;
-}
+.knob canvas { display: block; width: 100%; aspect-ratio: 1; }
 
 .knob-label {
   font-size: 12px;
-  color: #fff;
+  color: var(--text-bright);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -200,72 +211,7 @@ main {
   font-weight: bold;
 }
 
-.knob-val {
-  font-size: 11px;
-  color: #55aaff;
-  white-space: nowrap;
-  font-family: monospace;
-}
-
-#reset-btn {
-  background: #111;
-  border: 1px solid #444;
-  color: #aaa;
-  padding: 6px 12px;
-  cursor: pointer;
-  border-radius: 4px;
-  font-family: 'Courier New', monospace;
-  text-transform: uppercase;
-  font-size: 14px;
-  transition: all 0.2s;
-}
-
-#reset-btn:hover {
-  background: #222;
-  border-color: #666;
-  color: #fff;
-}
-
-.preset-controls {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-#preset-name {
-  background: #111;
-  border: 1px solid #444;
-  color: #fff;
-  padding: 6px 8px;
-  border-radius: 4px;
-  font-family: 'Courier New', monospace;
-  width: 160px;
-  font-size: 14px;
-}
-
-#preset-name:focus {
-  outline: none;
-  border-color: #55aaff;
-}
-
-#save-btn {
-  background: #111;
-  border: 1px solid #444;
-  color: #aaa;
-  padding: 6px 12px;
-  cursor: pointer;
-  border-radius: 4px;
-  font-family: 'Courier New', monospace;
-  text-transform: uppercase;
-  font-size: 14px;
-  transition: all 0.2s;
-}
-
-#save-btn:hover {
-  background: #222;
-  border-color: #666;
-  color: #fff;
-}
+.knob-val { font-size: 11px; color: var(--accent); white-space: nowrap; font-family: monospace; }
 </style>
 </head>
 
@@ -274,11 +220,12 @@ main {
   <h1>Pluck Synth</h1>
   <div class="header-right">
     <div class="preset-controls">
-        <select id="preset-select" onchange="handlePresetLoad(this.value)"></select>
-        <button id="save-btn">Save</button>
-        <button id="delete-btn">Delete</button>
-        <button id="reset-btn">Reset</button>
+      <select id="preset-select" class="ui-control" onchange="handlePresetLoad(this.value)"></select>
+      <button id="save-btn" class="ui-control">Save</button>
+      <button id="delete-btn" class="ui-control">Delete</button>
+      <button id="reset-btn" class="ui-control">Reset</button>
     </div>
+    
     <div class="device-stat" id="audio-stat">
       Audio Out
       <div class="tooltip" id="audio-out">None</div>
