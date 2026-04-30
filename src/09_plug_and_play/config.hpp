@@ -75,5 +75,5 @@ inline constexpr int UI_PORT               = 9002;
 
 // ------- State -------
 
-inline constexpr const char *STATE_FILE = "synth_state.json";
+inline constexpr const char *STATE_FILE = "synth_state";
 } // namespace Config

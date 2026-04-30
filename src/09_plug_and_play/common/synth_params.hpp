@@ -58,12 +58,14 @@ public:
 	// called by the web thread to apply an inbound slider change
 	void set_param(ParamId id, float normalized);
 
-	void save_state(const std::string &filename);
-	void load_state(const std::string &filename);
+	void save_preset(const std::string &name);
+	void load_preset(const std::string &name);
 
 	void reset_to_defaults();
 
 private:
+	void save_to_file(const std::string &path);
+	void load_from_file(const std::string &path);
 	void set_to_default(ParamId id);
 
 	static constexpr int COUNT = static_cast<int>(ParamId::COUNT);

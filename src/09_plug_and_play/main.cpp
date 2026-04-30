@@ -35,7 +35,7 @@ int main() {
 
 	if (!midi.open()) return 1;
 
-	params.load_state(Config::STATE_FILE);
+	params.load_preset(Config::STATE_FILE);
 
 	// audio thread -> web: meter data at ~30fps
 	audio.on_meter = [&web](float rl, float rr, float pl, float pr) {
@@ -82,6 +82,11 @@ int main() {
 		}
 	});
 
+	dispatcher.on("save_preset", [&params](std::string_view msg) {
+		std::string name = MsgParser::extract_string(msg, "name");
+		if (!name.empty()) params.save_preset(name);
+	});
+
 	std::signal(SIGINT, on_signal);
 	std::signal(SIGTERM, on_signal);
 
@@ -108,7 +113,7 @@ int main() {
 	}
 	std::cout << "\nShutting down...\n";
 
-	params.save_state(Config::STATE_FILE);
+	params.save_preset(Config::STATE_FILE);
 
 	audio.stop();
 	midi.stop();

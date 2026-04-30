@@ -33,4 +33,21 @@ inline float extract_float(std::string_view msg, std::string_view key) {
 	return val;
 }
 
+inline std::string extract_string(std::string_view msg, std::string_view key) {
+	auto needle = make_needle(key);
+	auto pos    = msg.find(needle);
+	if (pos == std::string::npos) return "";
+	pos += needle.size();
+
+	// Find the opening quote
+	size_t start = msg.find('"', pos);
+	if (start == std::string::npos) return "";
+	start++;
+
+	// Find the closing quote
+	size_t end = msg.find('"', start);
+	if (end == std::string::npos) return "";
+
+	return std::string(msg.substr(start, end - start));
+}
 } // namespace MsgParser

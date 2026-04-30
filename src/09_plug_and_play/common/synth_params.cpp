@@ -2,7 +2,10 @@
 #include "../web/msg_parser.hpp"
 #include <algorithm>
 #include <cmath>
+#include <filesystem>
 #include <iostream>
+
+namespace fs = std::filesystem;
 
 SynthParams::SynthParams() {
 	static_assert(std::atomic<float>::is_always_lock_free,
@@ -124,8 +127,17 @@ void SynthParams::set_param(ParamId id, float normalized) {
 	params[static_cast<int>(id)].store(std::clamp(normalized, 0.0f, 1.0f));
 }
 
-void SynthParams::save_state(const std::string &filename) {
-	std::ofstream f(filename);
+void SynthParams::save_preset(const std::string &name) {
+	fs::create_directories("presets");
+	save_to_file("presets/" + name + ".json");
+}
+
+void SynthParams::load_preset(const std::string &name) {
+	load_from_file("presets/" + name + ".json");
+}
+
+void SynthParams::save_to_file(const std::string &path) {
+	std::ofstream f(path);
 	if (!f) return;
 
 	f << "{\n";
@@ -134,30 +146,28 @@ void SynthParams::save_state(const std::string &filename) {
 		f << "  \"" << i << "\": " << get_normalized(id) << (i < COUNT - 1 ? ",\n" : "\n");
 	}
 	f << "}";
-
-	std::cout << "SynthParams: State saved to " << filename << "\n";
+	std::cout << "SynthParams: Saved to " << path << "\n";
 }
 
-void SynthParams::load_state(const std::string &filename) {
-	std::ifstream f(filename);
-	if (!f) return;
+void SynthParams::load_from_file(const std::string &path) {
+	std::ifstream f(path);
+	if (!f) {
+		std::cout << "SynthParams: No file found at " << path << "\n";
+		return;
+	}
 
 	char c;
 	int id;
 	float val;
-
-	// Extract characters and values sequentially
 	while (f >> c) {
 		if (c == '"') {
-			f >> id;            // Reads the numeric index
-			f.ignore(256, ':'); // Skip to the colon
-			f >> val;           // Reads the float value
-
+			f >> id;
+			f.ignore(256, ':');
+			f >> val;
 			if (id >= 0 && id < COUNT) { set_param(static_cast<ParamId>(id), val); }
 		}
 	}
-
-	std::cout << "SynthParams: State loaded from " << filename << "\n";
+	std::cout << "SynthParams: Loaded from " << path << "\n";
 }
 
 void SynthParams::set_to_default(ParamId id) {

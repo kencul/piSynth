@@ -225,13 +225,58 @@ main {
   border-color: #666;
   color: #fff;
 }
+
+.preset-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+#preset-name {
+  background: #111;
+  border: 1px solid #444;
+  color: #fff;
+  padding: 6px 8px;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  width: 160px;
+  font-size: 14px;
+}
+
+#preset-name:focus {
+  outline: none;
+  border-color: #55aaff;
+}
+
+#save-btn {
+  background: #111;
+  border: 1px solid #444;
+  color: #aaa;
+  padding: 6px 12px;
+  cursor: pointer;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  text-transform: uppercase;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+#save-btn:hover {
+  background: #222;
+  border-color: #666;
+  color: #fff;
+}
 </style>
 </head>
 
 <body>
 <header>
   <h1>Pluck Synth</h1>
-  <div class="header-right">
+    <div class="header-right">
+      <div class="preset-controls">
+      <input type="text" id="preset-name" placeholder="Preset name..." maxlength="16">
+      <button id="save-btn">Save</button>
+    </div>
     <button id="reset-btn">Reset</button>
     <div class="device-stat" id="audio-stat">
       Audio Out
@@ -617,6 +662,14 @@ ws.onmessage = ({ data }) => {
 
 $('reset-btn').onclick = () => {
   ws.send(JSON.stringify({ type: 'reset' }));
+};
+
+$('save-btn').onclick = () => {
+  const name = $('preset-name').value.trim();
+  if (name) {
+    ws.send(JSON.stringify({ type: 'save_preset', name: name }));
+    $('preset-name').value = ''; // Clear input after saving
+  }
 };
 
 requestAnimationFrame(draw);
