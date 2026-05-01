@@ -28,8 +28,8 @@ private:
 	static double midi_to_hz(int note);
 
 	// tracks insertion order for oldest-voice stealing
-	std::array<int, Config::MAX_VOICES> voice_age = {};
-	uint32_t age_counter                          = 0;
+	std::array<uint32_t, Config::MAX_VOICES> voice_age = {};
+	uint32_t age_counter                               = 0;
 
 	SmoothedValue cutoff_smoother {20.0f, SmoothedValue::Granularity::PerBlock};
 	SmoothedValue resonance_smoother {20.0f, SmoothedValue::Granularity::PerBlock};

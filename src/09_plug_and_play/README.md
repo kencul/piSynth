@@ -15,12 +15,13 @@ Launching will auto-connect any plugged-in MIDI controllers, scan for a USB audi
 Adjust voice parameters, effects settings, and web UI refresh rate in `config.hpp`:
 ```cpp
 inline constexpr int   MAX_VOICES             = 8;
-inline constexpr float KILL_MS                = 1.5f;    // ms: voice steal fade time
-inline constexpr float FILTER_KEYTRACK        = 0.8f;    // 0.0-2.0 cutoff tracking
-inline constexpr int   UI_UPDATES_PER_SECOND  = 60;      // visualization refresh rate
-inline constexpr int   UI_PORT                = 9002;    // web server port
+inline constexpr float KILL_MS                = 1.5f;    // voice steal fade time
+inline constexpr float FILTER_KEYTRACK        = 0.8f;    // filter cutoff tracking
 inline constexpr int   FFT_SIZE               = 4096;    // FFT window size
-inline constexpr int   FFT_OUT_BINS           = 512;     // downsampled bins sent to UI
+inline constexpr int   FFT_ACC_SIZE           = 8192;    // FFT accumulation buffer size
+inline constexpr int   FFT_OUT_BINS           = 512;     // downsampled bins for UI
+inline constexpr int   UI_UPDATES_PER_SECOND  = 60;      // web refresh rate
+inline constexpr int   UI_PORT                = 9002;    // web server port
 ```
 
 ## New in Program 09

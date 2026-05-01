@@ -10,7 +10,7 @@
 class FftProcessor {
 public:
 	static constexpr int FFT_SIZE  = Config::FFT_SIZE;
-	static constexpr int BIN_COUNT = FFT_SIZE / 2; // 1024 bins
+	static constexpr int BIN_COUNT = FFT_SIZE / 2;
 	static constexpr int OUT_BINS  = Config::FFT_OUT_BINS;
 
 	void init();

@@ -11,7 +11,7 @@ void FftProcessor::init() {
 	// Blackman-Harris window
 	for (int i = 0; i < FFT_SIZE; i++) {
 		float a0 = 0.35875f, a1 = 0.48829f, a2 = 0.14128f, a3 = 0.01168f;
-		float t   = 2.0f * 3.14159265f * i / (FFT_SIZE - 1);
+		float t   = 2.0f * std::numbers::pi_v<float> * i / (FFT_SIZE - 1);
 		window[i] = a0 - a1 * std::cos(t) + a2 * std::cos(2 * t) - a3 * std::cos(3 * t);
 	}
 

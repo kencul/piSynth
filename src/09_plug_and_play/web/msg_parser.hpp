@@ -36,12 +36,12 @@ inline float extract_float(std::string_view msg, std::string_view key) {
 inline std::string extract_string(std::string_view msg, std::string_view key) {
 	auto needle = make_needle(key);
 	auto pos    = msg.find(needle);
-	if (pos == std::string::npos) return "";
+	if (pos == std::string_view::npos) return "";
 	pos += needle.size();
 
 	// Find the opening quote
 	size_t start = msg.find('"', pos);
-	if (start == std::string::npos) return "";
+	if (start == std::string_view::npos) return "";
 	start++;
 
 	// Find the closing quote

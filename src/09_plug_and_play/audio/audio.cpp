@@ -83,7 +83,6 @@ bool AudioEngine::open() {
 
 	mix_l.assign(period_size, 0.0f);
 	mix_r.assign(period_size, 0.0f);
-	buf.assign(period_size * channels, 0);
 
 	return true;
 }
@@ -263,9 +262,9 @@ void AudioEngine::audio_loop() {
 				float l_dithered = mix_l[i] + (l_noise);
 				float r_dithered = mix_r[i] + (r_noise);
 
-				buf[i * channels + 0] =
+				s16_ptr[i * channels + 0] =
 				    static_cast<int16_t>(std::clamp(l_dithered, -1.0f, 1.0f) * 32767.0f);
-				buf[i * channels + 1] =
+				s16_ptr[i * channels + 1] =
 				    static_cast<int16_t>(std::clamp(r_dithered, -1.0f, 1.0f) * 32767.0f);
 
 				fft_acc.write((l_dithered + r_dithered) * 0.5f);
