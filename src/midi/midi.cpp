@@ -81,19 +81,19 @@ void MidiReader::handle_event(snd_seq_event_t *ev) {
 			if (ev->data.note.velocity > 0) {
 				event_queue.push(
 				    {NoteEvent::Type::NoteOn, ev->data.note.note, ev->data.note.velocity});
-				std::cout << "Note On  | " << note_name(ev->data.note.note) << " ("
-				          << (int)ev->data.note.note << ")"
-				          << " vel=" << (int)ev->data.note.velocity << "\n";
+				// std::cout << "Note On  | " << note_name(ev->data.note.note) << " ("
+				//           << (int)ev->data.note.note << ")"
+				//           << " vel=" << (int)ev->data.note.velocity << "\n";
 			} else {
 				// velocity 0 Note On is equivalent to Note Off
 				event_queue.push({NoteEvent::Type::NoteOff, ev->data.note.note, 0});
-				std::cout << "Note Off | " << note_name(ev->data.note.note) << "\n";
+				// std::cout << "Note Off | " << note_name(ev->data.note.note) << "\n";
 			}
 			break;
 
 		case SND_SEQ_EVENT_NOTEOFF:
 			event_queue.push({NoteEvent::Type::NoteOff, ev->data.note.note, 0});
-			std::cout << "Note Off | " << note_name(ev->data.note.note) << "\n";
+			// std::cout << "Note Off | " << note_name(ev->data.note.note) << "\n";
 			break;
 
 		case SND_SEQ_EVENT_CONTROLLER: {
@@ -103,13 +103,14 @@ void MidiReader::handle_event(snd_seq_event_t *ev) {
 
 			if (auto id = params.cc_to_param(cc)) {
 				auto d = params.descriptor(*id);
-				std::cout << "CC " << cc << " | " << d.name << " = " << params.get_value(*id) << " "
-				          << d.unit << "\n";
+				// std::cout << "CC " << cc << " | " << d.name << " = " << params.get_value(*id) <<
+				// " "
+				//           << d.unit << "\n";
 				if (on_param_change)
 					on_param_change(
 					    *id, params.get_normalized(*id), params.get_value(*id), d.name, d.unit);
 			} else {
-				std::cout << "CC " << cc << " val=" << val << " (unmapped)\n";
+				// std::cout << "CC " << cc << " val=" << val << " (unmapped)\n";
 			}
 			break;
 		}

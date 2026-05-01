@@ -1,0 +1,17 @@
+[Unit]
+Description=Pi Synth Service
+After=network.target
+
+[Service]
+# CHANGE THIS to your actual system username (run 'whoami' to find it)
+User=YOUR_USERNAME_HERE
+Group=YOUR_USERNAME_HERE
+WorkingDirectory=/home/%u
+ExecStart=/usr/local/bin/pi-synth
+
+# Ensure the process restarts if it crashes
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
