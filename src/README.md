@@ -11,6 +11,8 @@ ninja
 ./bin/synth
 ```
 
+> uWebSockets and PFFFT are included as submodules under `deps/`. If the directory is empty, run `git submodule update --init` from the repo root before building.
+
 Launching will auto-connect any plugged-in MIDI controllers, scan for a USB audio output, and start a web server. Run `hostname` in the Pi console to find the hostname, then open `http://<hostname>.local:9002` in a browser on the same network.
 
 ## Configuration
