@@ -1,5 +1,5 @@
-# 08 Web UI
-A polyphonic pluck-string waveguide synthesizer with a browser-based control and visualization interface, built on top of the 07 synth engine.
+# 09 Plug and Play
+A polyphonic pluck-string waveguide synthesizer with a browser-based control and visualization interface, built on top of the 08 web UI, adding automatic MIDI and audio device detection with hotswap support.
 
 ## Usage
 Build and run:
@@ -7,49 +7,42 @@ Build and run:
 cd build
 cmake ..
 ninja
-./bin/08_web_ui
+./bin/09_plug_and_play
 ```
 
-Launching will open the audio device, read MIDI controllers, and start a web server. To find the URL, run `hostname` in the Pi console — then open `http://<hostname>.local:<UI_PORT>` in a browser on the same network. The page is served with no-cache headers so the browser always loads the latest version.
-
-To change the audio device or the MIDI sources, edit `config.hpp`:
-```cpp
-inline constexpr const char *AUDIO_DEVICE = "hw:A";
-inline constexpr std::initializer_list<const char *> MIDI_DEVICES = {
-    "KOMPLETE KONTROL",
-    "Teensy MIDI"
-};
-```
+Launching will auto-connect any plugged-in MIDI controllers, scan for a USB audio output, and start a web server. To find the URL, run `hostname` in the Pi console — then open `http://<hostname>.local:<UI_PORT>` in a browser on the same network. The page is served with no-cache headers so the browser always loads the latest version.
 
 Adjust voice parameters, effects settings, and web UI refresh rate in `config.hpp`:
 ```cpp
 inline constexpr int   MAX_VOICES             = 8;
 inline constexpr float KILL_MS                = 1.5f;    // ms: voice steal fade time
 inline constexpr float FILTER_KEYTRACK        = 0.8f;    // 0.0-2.0 cutoff tracking
-inline constexpr int   UI_UPDATES_PER_SECOND  = 45;      // visualization refresh rate
+inline constexpr int   UI_UPDATES_PER_SECOND  = 60;      // visualization refresh rate
 inline constexpr int   UI_PORT                = 9002;    // web server port
 inline constexpr int   FFT_SIZE               = 4096;    // FFT window size
 inline constexpr int   FFT_OUT_BINS           = 512;     // downsampled bins sent to UI
 ```
 
-## New in Program 08
-Program 08 adds a **Web UI layer** on top of the 07 synth engine. A dedicated web thread runs a `uWebSockets` event loop that serves a browser interface, visualizes audio in real time, and accepts parameter control via sliders — all without touching the audio thread.
+## New in Program 09
+Program 09 adds **plug-and-play device handling** on top of the 08 web UI. MIDI devices are auto-connected on startup and hotswapped when plugged in or removed. Audio output is automatically discovered by scanning for USB audio devices and negotiating the sample rate and bit depth at runtime — no device names or formats need to be configured.
 
 ### Browser Interface
 * **Parameter sliders**: All synth parameters are exposed as sliders in the browser. Changes are broadcast to all connected clients so multiple open tabs stay in sync.
+* **Preset panel**: Save, load, and delete named presets. A factory default reset button restores all parameters to their initial values.
+* **Device display**: The active audio output device name and connected MIDI controller names are shown in the UI and update live as devices are connected or disconnected.
 * **RMS Meter**: Stereo RMS and peak meter updated at `UI_UPDATES_PER_SECOND`.
 * **Waveguide Display**: The state of the digital waveguide string is sampled and resampled to 128 points for a consistent visualization. Shows the effect of pluck position and pickup position parameters in real time.
 * **Spectrum Analyzer**: An EQ-style spectrum using a 4096-sample Blackman-Harris windowed FFT, log-scaled and downsampled to `FFT_OUT_BINS` bins before sending.
 
 ## CC Parameter Control
-Parameters are controlled via MIDI CC messages. Per-sample and per-block **Parameter Smoothing** has been implemented for all CC inputs to eliminate "zipper noise" and clicks during real-time adjustment.
+Parameters are controlled via MIDI CC messages. Per-sample and per-block **Parameter Smoothing** eliminates "zipper noise" and clicks during real-time adjustment.
 
 | CC | Parameter        | Range             | Scale | Effect |
 |----|------------------|-------------------|-------|--------|
 | 14 | Master Gain      | 0.0 – 1.0         | Power | Master |
 | 15 | Decay Time       | 10ms – 15000ms    | Log   | Voice  |
-| 16 | Pluck Pos        | 0.0 – 1.0         | Linear| Voice  |
-| 17 | Pickup Pos       | 0.05 – 1.0        | Linear| Voice  |
+| 16 | Pluck Pos        | 0.0 – 0.5         | Linear| Voice  |
+| 17 | Pickup Pos       | 0.05 – 0.5        | Linear| Voice  |
 | 18 | Attack Time      | 0.1ms – 50ms      | Log   | Voice  |
 | 19 | Release Time     | 1ms – 1000ms      | Log   | Voice  |
 | 20 | Filter Cutoff    | 20Hz – 18000Hz    | Exp   | Filter |
@@ -68,10 +61,10 @@ Parameters are controlled via MIDI CC messages. Per-sample and per-block **Param
 
 ## DAC & Audio Configuration
 
-The system continues to target the **Apple USB-C dongle** with the following hardware settings:
-* **Format**: `S16_LE`
-* **Sample Rate**: `48000Hz`
-* **Device Name**: `hw:A`
+The program auto-discovers the first connected USB audio device at runtime. Sample rate and bit depth are negotiated with the device:
+* **Sample Rate**: Prefers `48000Hz`, falls back to `44100Hz`, then nearest available
+* **Bit Depth**: Sends `float` if the device supports 32-bit or 24-bit PCM (letting `plughw` convert); falls back to `S16_LE` with TPDF dithering applied in software
+* **Device**: Any USB audio device with PCM playback output — selected automatically via the `USB-Audio` ALSA driver string
 * **Scheduling**: Automatically grants `SCHED_FIFO` real-time priority (priority 80) via `setcap` in the build process to ensure low-latency performance.
 
 ## Startup Sequence
@@ -95,17 +88,24 @@ main()
 ├── creates WebServer(params, dispatcher)
 │     ├── loads index.html into memory
 │     └── owns FftProcessor (Blackman-Harris FFT wrapper)
-├── audio.open()  → configures ALSA PCM (S16_LE, 48000Hz)
-├── midi.open()   → connects to multiple devices in config.hpp
+├── midi.open()   → auto-connects all MIDI output ports
+│     └── subscribes to System client for hotswap announcements
 ├── wire callbacks
-│     ├── audio.on_meter    → web.broadcast(MeterMsg)
-│     ├── audio.on_waveguide → web.broadcast(WaveguideMsg)
-│     ├── midi.on_param_change → web.broadcast(ParamMsg)
-│     └── dispatcher.on("set_param") → params.set_param() + web.broadcast(ParamMsg)
+│     ├── audio.on_meter        → web.broadcast(MeterMsg)
+│     ├── audio.on_waveguide    → web.broadcast(WaveguideMsg)
+│     ├── midi.on_param_change  → web.broadcast(ParamMsg)
+│     ├── midi.on_port_change   → web.broadcast_midi_device(names)
+│     ├── audio.on_state_change → web.broadcast_audio_device(name)
+│     └── dispatcher.on("set_param/reset/load_preset/save_preset/delete_preset")
 ├── web.set_fft_acc(&audio.get_fft_acc())
-├── audio.start() → launches high-priority audio thread
 ├── midi.start()  → launches MIDI polling thread
-└── web.start(Config::UI_PORT) → launches web thread (uWS event loop)
+├── web.start(Config::UI_PORT) → launches web thread (uWS event loop)
+└── Audio device loop (main thread):
+      └── audio.open() → scans for USB audio device, negotiates rate/format
+            ├── success → web.reset_fft(); audio.start()
+            │              monitor while running
+            │              audio.stop() on disconnect or SIGINT
+            └── failure → sleep 1s, retry
 ```
 
 ## Realtime Data Flow
@@ -124,12 +124,16 @@ snd_seq_event_input() → drain events
         ↓
 handle_event()
         ├── NoteOn/Off → event_queue.push({ type, note, velocity })
-        └── CC Message → params.handle_cc(cc, value)
-                           → normalize 0–127 to 0.0–1.0
-                           → apply scaling (Log/Exp/Linear)
-                           → store in Atomic float array
-                           → on_param_change() callback
-                                → loop->defer(ParamMsg) → WEB THREAD
+        ├── CC Message → params.handle_cc(cc, value)
+        │                  → normalize 0–127 to 0.0–1.0
+        │                  → apply scaling (Log/Exp/Linear)
+        │                  → store in Atomic float array
+        │                  → on_param_change() callback
+        │                       → loop->defer(ParamMsg) → WEB THREAD
+        ├── PORT_START  → connect_all_inputs(); on_port_change()
+        │                  → loop->defer(MidiDeviceMsg) → WEB THREAD
+        └── CLIENT_EXIT → on_port_change()
+                           → loop->defer(MidiDeviceMsg) → WEB THREAD
         ↓
 RingBuffer<NoteEvent, 64>   ← MIDI thread writes here
         ↓                      audio thread reads here
@@ -158,7 +162,7 @@ AUDIO THREAD (AudioEngine processing)
 
 4. FINAL OUTPUT
    a. Soft Clip → tanh(mix * DRIVE) / DRIVE (Bus limiting)
-   b. Scale     → Convert float to S16_LE (INT16_MAX)
+   b. Format    → float (S32/S24 device) or dithered S16_LE (16-bit device)
    c. ALSA      → snd_pcm_writei() to hardware DMA
 
 5. VISUALIZATION CALLBACKS (every meter_interval blocks)
@@ -177,9 +181,12 @@ INBOUND (Browser → Synth)
         ↓
   .message handler → MsgDispatcher::dispatch(msg)
         → reads "type" field (expected first key)
-        → routes to registered handler, e.g. "set_param"
-              → MsgParser::extract_int/float → params.set_param()
-              → loop->defer(ParamMsg) → broadcast to all clients
+        → routes to registered handler:
+              "set_param"     → params.set_param() + broadcast(ParamMsg)
+              "reset"         → params.reset_to_defaults() + broadcast all ParamMsgs
+              "save_preset"   → params.save_preset(name) + broadcast(PresetListMsg)
+              "load_preset"   → params.load_preset(name) + broadcast all ParamMsgs
+              "delete_preset" → params.delete_preset(name) + broadcast(PresetListMsg)
 
 OUTBOUND (Synth → Browser)
   loop->defer() callbacks queued by audio/MIDI threads execute here
@@ -197,6 +204,9 @@ OUTBOUND (Synth → Browser)
         → send_initial_state(ws)
               → ConfigMsg (sample_rate, spectrum_bins)
               → ParamMsg for every parameter (syncs sliders to current state)
+              → AudioDeviceMsg (current audio device name)
+              → MidiDeviceMsg (current connected MIDI device names)
+              → PresetListMsg (available preset names)
 ```
 
 ## Code Breakdown
@@ -241,12 +251,14 @@ case SND_SEQ_EVENT_PORT_START:
         // A new port available
         std::cout << "MidiReader: New MIDI port detected. Re-scanning...\n";
         connect_all_inputs();
+        if (on_port_change) on_port_change();
         break;
 
 case SND_SEQ_EVENT_CLIENT_EXIT:
         // A device was removed.
         // ALSA kills the connection automatically
         std::cout << "MidiReader: Device disconnected.\n";
+        if (on_port_change) on_port_change();
         break;
 ```
 
@@ -284,18 +296,29 @@ First, with the assumption that all audio output will be done by USB audio devic
 std::string AudioEngine::find_usb_device() {
 	int card = -1;
 	while (snd_card_next(&card) == 0 && card >= 0) {
-		char *name;
-		snd_card_get_name(card, &name);
-		std::string card_name = name;
+		snd_ctl_t *ctl;
+		std::string card_id = "hw:" + std::to_string(card);
 
-		free(name);
+		if (snd_ctl_open(&ctl, card_id.c_str(), 0) < 0) continue;
 
-		// Find cards with USB in the name
-		if (card_name.find("USB") != std::string::npos) {
-			return "plughw:" + std::to_string(card) + ",0";
+		snd_ctl_card_info_t *info;
+		snd_ctl_card_info_alloca(&info);
+
+		if (snd_ctl_card_info(ctl, info) >= 0) {
+			std::string driver    = snd_ctl_card_info_get_driver(info);
+			std::string long_name = snd_ctl_card_info_get_longname(info);
+			snd_ctl_close(ctl);
+
+			// "USB-Audio" is the most reliable driver string for ALSA USB devices
+			if (driver.find("USB-Audio") != std::string::npos
+			    || long_name.find("USB-Audio") != std::string::npos) {
+				return "plughw:" + std::to_string(card) + ",0";
+			}
+		} else {
+			snd_ctl_close(ctl);
 		}
 	}
-	return "default"; // Fallback
+	return "default";
 }
 ```
 
@@ -315,7 +338,7 @@ unsigned int rate = 48000;
 if (snd_pcm_hw_params_set_rate(handle, hw_params, rate, 0) < 0) {
         rate = 44100;
         if (snd_pcm_hw_params_set_rate(handle, hw_params, rate, 0) < 0) {
-                if (snd_pcm_hw_params_set_rate_near(handle, hw_params, &sample_rate, &dir) < 0) {
+                if (snd_pcm_hw_params_set_rate_near(handle, hw_params, &sample_rate, nullptr) < 0) {
                         std::cerr << "AudioEngine: could not set sample rate\n";
                         return false; // Couldn't set sample rate
                 }
@@ -354,8 +377,12 @@ if (use_floats) {
         float *f_ptr = reinterpret_cast<float *>(buf.data());
 
         for (size_t i = 0; i < period_size; ++i) {
-                f_ptr[i * channels + 0] = std::clamp(mix_l[i], -1.0f, 1.0f);
-                f_ptr[i * channels + 1] = std::clamp(mix_r[i], -1.0f, 1.0f);
+                float l                 = std::clamp(mix_l[i], -1.0f, 1.0f);
+                float r                 = std::clamp(mix_r[i], -1.0f, 1.0f);
+                f_ptr[i * channels + 0] = l;
+                f_ptr[i * channels + 1] = r;
+
+                fft_acc.write((l + r) * 0.5f);
         }
 } else {
         int16_t *s16_ptr = reinterpret_cast<int16_t *>(buf.data());
@@ -364,16 +391,16 @@ if (use_floats) {
                 // Apply TPDF dithering and convert to int16
                 // Scale by 1/4 of int16 to get half of LSB with rng with a width of 2 (x2 from RNG,
                 // to get 0.5 from 2, divide by 4)
-                float dither_scale = 0.25f / static_cast<float>(Config::SAMPLE_SCALE);
+                float dither_scale = 0.25f / 32767.0f;
                 float l_noise = (distribution(generator) + distribution(generator)) * dither_scale;
                 float r_noise = (distribution(generator) + distribution(generator)) * dither_scale;
                 float l_dithered = mix_l[i] + (l_noise);
                 float r_dithered = mix_r[i] + (r_noise);
 
-                buf[i * channels + 0] = static_cast<int16_t>(std::clamp(l_dithered, -1.0f, 1.0f)
-                                                                * Config::SAMPLE_SCALE);
-                buf[i * channels + 1] = static_cast<int16_t>(std::clamp(r_dithered, -1.0f, 1.0f)
-                                                                * Config::SAMPLE_SCALE);
+                buf[i * channels + 0] =
+                        static_cast<int16_t>(std::clamp(l_dithered, -1.0f, 1.0f) * 32767.0f);
+                buf[i * channels + 1] =
+                        static_cast<int16_t>(std::clamp(r_dithered, -1.0f, 1.0f) * 32767.0f);
 
                 fft_acc.write((l_dithered + r_dithered) * 0.5f);
         }
@@ -440,6 +467,7 @@ Right now, if there is no valid audio device when the program runs, it exits. In
 ```cpp
 while (!should_quit.load()) {
         if (audio.open()) {
+                web.reset_fft();
                 audio.start();
                 // Monitor the engine
                 while (audio.is_running() && !should_quit.load()) {
@@ -525,7 +553,7 @@ Sending the name of the audio device is simple. The name of the audio device is 
 
 ```cpp
 auto broadcast_audio_device = [&web, &audio]() {
-        web.broadcast(AudioDeviceMsg {audio.get_device_name()});
+        web.broadcast_audio_device(audio.get_device_name());
 };
 ```
 
@@ -533,7 +561,7 @@ Getting the list of MIDI device names is a little more convoluted:
 
 ```cpp
 std::string MidiReader::get_connected_names() {
-	if (!seq || in_port < 0) return "None";
+	if (!seq || in_port < 0) return "";
 
 	std::string names = "";
 	snd_seq_query_subscribe_t *subs;
@@ -567,7 +595,7 @@ std::string MidiReader::get_connected_names() {
 		snd_seq_query_subscribe_set_index(subs, snd_seq_query_subscribe_get_index(subs) + 1);
 	}
 
-	return names.empty() ? "None" : names;
+	return names.empty() ? "" : names;
 }
 ```
 
