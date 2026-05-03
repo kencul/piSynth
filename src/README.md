@@ -30,6 +30,20 @@ inline constexpr int   UI_UPDATES_PER_SECOND  = 60;      // web refresh rate
 inline constexpr int   UI_PORT                = 9002;    // web server port
 ```
 
+### Reassigning CC Numbers
+
+The default CC assignments may not match your controller. To remap them, open [common/synth_params.cpp](common/synth_params.cpp) and find the `cc_map` block near the top of the constructor:
+
+```cpp
+cc_map = {
+    {14, ParamId::MasterGain},
+    {15, ParamId::DecayTime},
+    // ...
+};
+```
+
+Each line maps a CC number (left) to a parameter (right). Change the number on the left to whichever CC your controller sends for that parameter. CC numbers can usually be found in your controller's manual or by using a MIDI monitor tool.
+
 ## Source Structure
 
 | Directory | Contents |
