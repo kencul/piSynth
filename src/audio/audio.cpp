@@ -55,6 +55,12 @@ bool AudioEngine::open() {
 
 				std::cout << "AudioEngine: Found USB Playback Device: " << long_name << "\n";
 
+				// Probe native rate BEFORE opening plughw — hw:X,0 is exclusively
+				// locked once plughw is open, so the probe would fail and fall back
+				// to 48000, re-introducing the SRC bitcrushing issue.
+				device_card = card;
+				probed_rate = probe_native_rate();
+
 				if (snd_pcm_open(&handle, device_path.c_str(), SND_PCM_STREAM_PLAYBACK, 0) >= 0) {
 					if (configure_device()) {
 						connected           = true;
@@ -87,36 +93,23 @@ bool AudioEngine::open() {
 	return true;
 }
 
-std::string AudioEngine::find_usb_device() {
-	int card = -1;
-	while (snd_card_next(&card) == 0 && card >= 0) {
-		snd_ctl_t *ctl;
-		std::string card_id = "hw:" + std::to_string(card);
+unsigned int AudioEngine::probe_native_rate() {
+	snd_pcm_t *hw;
+	std::string path = "hw:" + std::to_string(device_card) + ",0";
+	if (snd_pcm_open(&hw, path.c_str(), SND_PCM_STREAM_PLAYBACK, 0) < 0)
+		return 48000;
 
-		if (snd_ctl_open(&ctl, card_id.c_str(), 0) < 0) continue;
+	snd_pcm_hw_params_t *p;
+	snd_pcm_hw_params_alloca(&p);
+	snd_pcm_hw_params_any(hw, p);
 
-		snd_ctl_card_info_t *info;
-		snd_ctl_card_info_alloca(&info);
+	unsigned int rate = 48000;
+	if (snd_pcm_hw_params_test_rate(hw, p, 48000, 0) != 0)
+		rate = 44100;
 
-		if (snd_ctl_card_info(ctl, info) >= 0) {
-			std::string driver    = snd_ctl_card_info_get_driver(info);
-			std::string long_name = snd_ctl_card_info_get_longname(info);
-
-			snd_ctl_close(ctl);
-
-			std::cout << "AudioEngine: Found card " << card_id << " - " << long_name
-			          << " (driver: " << driver << ")\n";
-
-			// "USB-Audio" is the most reliable driver string for ALSA USB devices
-			if (driver.find("USB-Audio") != std::string::npos
-			    || long_name.find("USB-Audio") != std::string::npos) {
-				return "plughw:" + std::to_string(card) + ",0";
-			}
-		} else {
-			snd_ctl_close(ctl);
-		}
-	}
-	return "default";
+	snd_pcm_close(hw);
+	std::cout << "AudioEngine: probed native rate=" << rate << "\n";
+	return rate;
 }
 
 bool AudioEngine::configure_device() {
@@ -129,16 +122,10 @@ bool AudioEngine::configure_device() {
 	snd_pcm_hw_params_set_period_size_near(handle, hw_params, &period_size, nullptr);
 	snd_pcm_hw_params_set_buffer_size_near(handle, hw_params, &buffer_size);
 
-	// Rate Priority: 48000 then 44100
-	unsigned int rate = 48000;
-	if (snd_pcm_hw_params_set_rate(handle, hw_params, rate, 0) < 0) {
-		rate = 44100;
-		if (snd_pcm_hw_params_set_rate(handle, hw_params, rate, 0) < 0) {
-			if (snd_pcm_hw_params_set_rate_near(handle, hw_params, &sample_rate, nullptr) < 0) {
-				std::cerr << "AudioEngine: could not set sample rate\n";
-				return false; // Couldn't set sample rate
-			}
-		}
+	unsigned int rate = probed_rate;
+	if (snd_pcm_hw_params_set_rate_near(handle, hw_params, &rate, nullptr) < 0) {
+		std::cerr << "AudioEngine: could not set sample rate\n";
+		return false;
 	}
 	this->sample_rate = rate;
 

@@ -34,9 +34,9 @@ public:
 	FftAccumulator<Config::FFT_ACC_SIZE> &get_fft_acc() { return fft_acc; }
 
 private:
-	std::string find_usb_device();
 	void audio_loop();
 	bool configure_device();
+	unsigned int probe_native_rate();
 
 	snd_pcm_t *handle = nullptr;
 	VoiceManager voice_manager;
@@ -45,6 +45,8 @@ private:
 	std::atomic<bool> running {false};
 
 	std::string current_device_name = "";
+	int device_card                 = -1;
+	unsigned int probed_rate        = 48000;
 
 	bool use_floats = true;
 

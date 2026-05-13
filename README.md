@@ -72,7 +72,7 @@ sudo apt install build-essential cmake ninja-build libasound2-dev
 ### 5. Clone and build
 
 ```bash
-git clone --recurse-submodules <repo-url>
+git clone --recurse-submodules https://github.com/kencul/piSynth
 cd synth
 mkdir build && cd build
 cmake ..
