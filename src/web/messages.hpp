@@ -99,3 +99,9 @@ struct PresetListMsg {
 
 	std::string serialize() const { return JsonMsg("preset_list").array("presets", presets).str(); }
 };
+
+struct PresetLoadedMsg {
+	std::string name;
+
+	std::string serialize() const { return JsonMsg("preset_loaded").field("name", name).str(); }
+};

@@ -85,8 +85,8 @@ int main() {
 		}
 	});
 
-	dispatcher.on("load_preset", [&params, &web, &broadcast_presets](std::string_view msg) {
-		std::string name = MsgParser::extract_string(msg, "name"); // See note below
+	dispatcher.on("load_preset", [&params, &web](std::string_view msg) {
+		std::string name = MsgParser::extract_string(msg, "name");
 		params.load_preset(name);
 		for (int i = 0; i < static_cast<int>(SynthParams::ParamId::COUNT); ++i) {
 			auto id = static_cast<SynthParams::ParamId>(i);
@@ -94,6 +94,7 @@ int main() {
 			web.broadcast(
 			    ParamMsg {id, params.get_normalized(id), params.get_value(id), d.name, d.unit});
 		}
+		web.broadcast(PresetLoadedMsg {name});
 	});
 
 	dispatcher.on("save_preset", [&params, &broadcast_presets](std::string_view msg) {

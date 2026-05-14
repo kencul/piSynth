@@ -589,12 +589,9 @@ ws.onmessage = ({ data }) => {
       let dV = 0, dY = 0;
       div.onpointerdown = e => {
         console.log('Pointer down on knob:', msg.name);
-        div.setPointerCapture(e.pointerId); 
-        dY = e.clientY; dV = k.val; 
-        e.preventDefault(); 
-        if ($('preset-select').selectedIndex !== -1) {
-          clearPresetSelection();
-        }
+        div.setPointerCapture(e.pointerId);
+        dY = e.clientY; dV = k.val;
+        e.preventDefault();
       };
       div.onpointermove = e => {
         if (!div.hasPointerCapture(e.pointerId)) return;
@@ -606,6 +603,7 @@ ws.onmessage = ({ data }) => {
     k.val = msg.normalized;
     k.el.textContent = fmtVal(msg.value, msg.unit);
     drawKnob(k.cvs, k.val);
+    clearPresetSelection();
   } else if (msg.type === 'config') {
     SPEC_SR   = msg.sample_rate;
     SPEC_BINS = msg.spectrum_bins;
@@ -648,9 +646,11 @@ ws.onmessage = ({ data }) => {
         // Select the preset if we just saved it
         if (lastSavedPreset && msg.presets.includes(lastSavedPreset)) {
             select.value = lastSavedPreset;
-            lastSavedPreset = null; // Clear the flag
+            lastSavedPreset = null;
         }
     }
+  } else if (msg.type === 'preset_loaded') {
+    $('preset-select').value = msg.name;
   }
 };
 
