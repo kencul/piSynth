@@ -623,25 +623,17 @@ ws.onmessage = ({ data }) => {
     const select = $('preset-select');
     select.innerHTML = '';
 
-    const placeholder = document.createElement('option');
-    placeholder.textContent = 'Select Preset...';
-    placeholder.value = ''; // Empty value for logic checks
+    const placeholder = new Option('Select Preset...', '');
     placeholder.disabled = true;
-    placeholder.selected = true; // Set as selected by default
+    placeholder.selected = true;
     select.appendChild(placeholder);
 
     if (msg.presets.length === 0) {
-        const opt = document.createElement('option');
-        opt.textContent = 'No Presets';
+        const opt = new Option('No Presets', '');
         opt.disabled = true;
         select.appendChild(opt);
     } else {
-        msg.presets.forEach(name => {
-            const opt = document.createElement('option');
-            opt.value = name;
-            opt.textContent = name;
-            select.appendChild(opt);
-        });
+        msg.presets.forEach(name => select.appendChild(new Option(name, name)));
 
         // Select the preset if we just saved it
         if (lastSavedPreset && msg.presets.includes(lastSavedPreset)) {

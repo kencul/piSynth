@@ -184,8 +184,9 @@ void SynthParams::load_from_file(const std::string &path) {
 			f.ignore(256, ':');
 			f >> val;
 			if (id < 0 || id >= COUNT) continue;
-			if (static_cast<ParamId>(id) == ParamId::MasterGain) continue;
-			set_param(static_cast<ParamId>(id), val);
+			auto param_id = static_cast<ParamId>(id);
+			if (param_id == ParamId::MasterGain) continue;
+			set_param(param_id, val);
 		}
 	}
 	std::cout << "SynthParams: Loaded from " << path << "\n";
