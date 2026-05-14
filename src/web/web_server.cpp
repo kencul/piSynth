@@ -1,22 +1,10 @@
 #include "web_server.hpp"
-#include <fstream>
-#include <iostream>
-#include <sstream>
 
-static std::string load_html(const std::string &path) {
-	std::ifstream f(path);
-	if (!f) {
-		std::cerr << "WebServer: failed to open " << path << "\n";
-		return "<html><body>index.html not found</body></html>";
-	}
-	std::ostringstream ss;
-	ss << f.rdbuf();
-	return ss.str();
-}
+extern const char *HTML_CONTENT;
 
 WebServer::WebServer(SynthParams &params, MsgDispatcher &dispatcher) :
     params(params), dispatcher(dispatcher) {
-	html = load_html(HTML_PATH);
+	html = HTML_CONTENT;
 }
 
 void WebServer::start(int port) {

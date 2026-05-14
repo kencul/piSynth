@@ -81,6 +81,8 @@ ninja
 
 All executables land in `build/bin/`.
 
+> **Note:** `web/index.html` is embedded into the binary at CMake configure time, not at `ninja` build time. If you edit `index.html`, re-run `cmake ..` before `ninja` to pick up the changes.
+
 ### 6. Run
 
 ```bash

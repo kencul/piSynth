@@ -17,6 +17,13 @@ target_compile_definitions(uSockets PUBLIC
     UWS_NO_ZLIB=1
 )
 
+file(READ ${CMAKE_CURRENT_SOURCE_DIR}/web/index.html HTML_CONTENT)
+configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/web/html_content.cpp.in
+    ${CMAKE_CURRENT_BINARY_DIR}/web/html_content.cpp
+    @ONLY
+)
+
 add_executable(synth
     main.cpp
     osc/osc.cpp
@@ -39,10 +46,7 @@ add_executable(synth
     effects/ping_pong.cpp
     fft/fft_processor.cpp
     web/web_server.cpp
-)
-
-target_compile_definitions(synth PRIVATE
-    HTML_PATH="${CMAKE_CURRENT_SOURCE_DIR}/web/index.html"
+    ${CMAKE_CURRENT_BINARY_DIR}/web/html_content.cpp
 )
 
 target_include_directories(synth PRIVATE
