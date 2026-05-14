@@ -4,12 +4,18 @@
 #include <cmath>
 #include <filesystem>
 #include <iostream>
+#include <pwd.h>
+#include <unistd.h>
 
 namespace fs = std::filesystem;
 
 SynthParams::SynthParams() {
 	static_assert(std::atomic<float>::is_always_lock_free,
 	              "float atomics must be lock-free on this platform");
+
+	const passwd *pw = getpwuid(getuid());
+	presets_dir      = fs::path(pw ? pw->pw_dir : "/tmp") / ".local" / "share" / "pi-synth" / "presets";
+	std::cout << "SynthParams: presets_dir = " << presets_dir << "\n";
 
 	// descriptors define the full contract for each param
 	descs[static_cast<int>(ParamId::MasterGain)] = {
@@ -128,12 +134,20 @@ void SynthParams::set_param(ParamId id, float normalized) {
 }
 
 void SynthParams::save_preset(const std::string &name) {
-	fs::create_directories("presets");
-	save_to_file("presets/" + name + ".json");
+	try {
+		fs::create_directories(presets_dir);
+		save_to_file((presets_dir / (name + ".json")).string());
+	} catch (const fs::filesystem_error &e) {
+		std::cerr << "SynthParams: save_preset failed: " << e.what() << "\n";
+	}
 }
 
 void SynthParams::load_preset(const std::string &name) {
-	load_from_file("presets/" + name + ".json");
+	try {
+		load_from_file((presets_dir / (name + ".json")).string());
+	} catch (const fs::filesystem_error &e) {
+		std::cerr << "SynthParams: load_preset failed: " << e.what() << "\n";
+	}
 }
 
 void SynthParams::save_to_file(const std::string &path) {
@@ -201,9 +215,9 @@ void SynthParams::reset_to_defaults() {
 
 std::vector<std::string> SynthParams::get_preset_list() {
 	std::vector<std::string> presets;
-	if (!fs::exists("presets")) return presets;
+	if (!fs::exists(presets_dir)) return presets;
 
-	for (const auto &entry : fs::directory_iterator("presets")) {
+	for (const auto &entry : fs::directory_iterator(presets_dir)) {
 		if (entry.path().extension() == ".json") {
 			presets.push_back(entry.path().stem().string());
 		}
@@ -212,7 +226,7 @@ std::vector<std::string> SynthParams::get_preset_list() {
 }
 
 void SynthParams::delete_preset(const std::string &name) {
-	fs::path p = "presets/" + name + ".json";
+	fs::path p = presets_dir / (name + ".json");
 	if (fs::exists(p)) {
 		fs::remove(p);
 		std::cout << "SynthParams: Deleted " << p << "\n";

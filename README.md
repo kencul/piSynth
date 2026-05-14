@@ -14,7 +14,7 @@
   * Master bus: Stereo Chorus, Freeverb reverb, and Ping-Pong Delay
   * Sample-accurate parameter smoothing to eliminate zipper noise
   * TPDF dithering for 16-bit output paths; float passthrough for 24/32-bit devices
-* **Full-Stack Control**: Browser UI with real-time FFT spectrum analyzer, live waveguide state display, RMS/peak meter, preset management, and multi-client WebSocket sync.
+* **Full-Stack Control**: Browser UI with real-time FFT spectrum analyzer, live waveguide state display, RMS/peak meter, preset management (stored in `~/.local/share/pi-synth/presets/`), and multi-client WebSocket sync.
 * **Plug-and-Play Hardware**: Automatic USB audio device discovery with runtime sample-rate and bit-depth negotiation. MIDI controllers auto-connect on startup and hotswap without restarting.
 
 ---

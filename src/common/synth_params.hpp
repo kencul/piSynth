@@ -2,6 +2,7 @@
 #include "../config.hpp"
 #include <array>
 #include <atomic>
+#include <filesystem>
 #include <fstream>
 #include <optional>
 #include <sstream>
@@ -76,4 +77,5 @@ private:
 	std::array<std::atomic<float>, COUNT> params = {};
 	std::array<ParamDescriptor, COUNT> descs     = {};
 	std::unordered_map<int, ParamId> cc_map;
+	std::filesystem::path presets_dir;
 };

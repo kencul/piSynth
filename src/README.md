@@ -62,7 +62,7 @@ Each line maps a CC number (left) to a parameter (right). Change the number on t
 
 ### Browser Interface
 * **Parameter sliders**: All synth parameters exposed as sliders. Changes are broadcast to all connected clients so multiple open tabs stay in sync.
-* **Preset panel**: Save, load, and delete named presets. A factory default reset button restores all parameters to their initial values.
+* **Preset panel**: Save, load, and delete named presets. Presets are stored in `~/.local/share/pi-synth/presets/` and are shared across all instances running as the same user. A factory default reset button restores all parameters to their initial values.
 * **Device display**: Active audio output and connected MIDI controller names shown live as devices connect or disconnect.
 * **RMS Meter**: Stereo RMS and peak meter updated at `UI_UPDATES_PER_SECOND`.
 * **Waveguide Display**: Digital waveguide state resampled to 128 points for visualization. Shows the effect of pluck and pickup position in real time.
@@ -116,6 +116,7 @@ To have the synth start automatically when the Pi boots:
 
 3. **Install the service file:**
    ```bash
+   # From the build directory
    sudo cp ../systemd/pi-synth.service /etc/systemd/system/
    ```
 
