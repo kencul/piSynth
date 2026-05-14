@@ -97,8 +97,8 @@ The DSP core is covered by a [Catch2](https://github.com/catchorg/Catch2) test s
 
 | File | What is verified |
 | :--- | :--- |
-| `test_pluck.cpp` | Pitch accuracy (±2 cents, via autocorrelation with parabolic interpolation); decay rate (±20% of requested dB/sec); DC blocker convergence; pickup position comb filter (null at −42 dB, boost at +1.9 dB vs fundamental) |
-| `test_svf.cpp` | −6 dB at cutoff for Q = 0.5; −3 dB point at cutoff with Butterworth Q = 1/√2; passband flatness; −40 dB/decade stopband rolloff; resonance peak |
+| `test_pluck.cpp` | Pitch accuracy (±2 cents, via autocorrelation with parabolic interpolation); decay rate (±10% of requested dB/sec, measured via Goertzel at the fundamental bin to eliminate harmonic bias); DC blocker convergence; pickup position comb filter (null below −40 dB, measured −43 dB; boost at +1.9 dB vs fundamental) |
+| `test_svf.cpp` | −6 dB at cutoff for Q = 0.5 (±0.3 dB); −3 dB point at cutoff with Butterworth Q = 1/√2 (±0.3 dB); both verified from 200 Hz to 18 kHz — residual deviation is a known property of the ZDF trapezoidal integrator, not a bug; passband flatness; −40 dB/decade stopband rolloff; resonance peak |
 | `test_adsr.cpp` | Stage transitions; attack and release timing (±2 samples); sustain hold; kill ramp within `KILL_MS`; reset |
 | `test_ring_buffer.cpp` | FIFO ordering; full/empty conditions; SPSC correctness under concurrent access (validates `acquire`/`release` ordering on ARM) |
 | `test_smoothed_value.cpp` | Immediate snap on `reset()`; 63% convergence after one time constant; asymptotic tail termination via snap threshold; re-targeting |

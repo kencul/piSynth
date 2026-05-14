@@ -86,22 +86,31 @@ TEST_CASE("Pluck frequency accuracy is within ±2 cents across MIDI range", "[pl
 	}
 }
 
-// Computes the RMS of a slice of buf[start .. start+len).
-static float window_rms(const std::vector<float> &buf, int start, int len) {
-	double sum = 0.0;
-	for (int i = start; i < start + len; ++i) sum += double(buf[i]) * buf[i];
-	return float(std::sqrt(sum / len));
+// Returns Goertzel power at freq_hz over buf[offset .. offset+len).
+// Choose len so that len * freq_hz / Config::SAMPLE_RATE is an integer for zero spectral leakage.
+static float goertzel_power_at(const std::vector<float> &buf, int offset, int len, float freq_hz) {
+	const float omega = 2.0f * std::numbers::pi_v<float> * freq_hz / float(Config::SAMPLE_RATE);
+	const float coeff = 2.0f * std::cos(omega);
+	float s1 = 0.0f, s2 = 0.0f;
+	for (int i = offset; i < offset + len; ++i) {
+		float s = buf[i] + coeff * s1 - s2;
+		s2      = s1;
+		s1      = s;
+	}
+	return s1 * s1 + s2 * s2 - coeff * s1 * s2;
 }
 
-// Triggers a Pluck at freq_hz with requested_decay_db_per_sec, then measures
-// the actual decay rate from the RMS slope between two windows separated in time.
+// Measures fundamental-only decay using Goertzel instead of broadband RMS.
+// N = 4410 = fs/10: 220 Hz → bin 22 and 440 Hz → bin 44 are both exact Goertzel bins,
+// so harmonics (440, 660, 880 Hz, …) land on orthogonal bins and cannot contaminate the
+// fundamental power measurement. The power ratio between two windows gives the true decay
+// rate at the fundamental frequency with no harmonic bias.
 static float measure_decay_db_per_sec(float freq_hz, float requested_decay) {
 	Config::SAMPLE_RATE = 44100;
 
-	// Skip the initial transient (first few periods of triangle smoothing)
 	const int SKIP   = 4096;
-	const int WINDOW = 4096;  // ~93 ms; spans many periods at all test frequencies
-	const int GAP    = 22050; // ~0.5 s between window starts: large enough for clear slope
+	const int WINDOW = 4410; // fs/10: exact-bin condition for 220 Hz and 440 Hz
+	const int GAP    = 22050;
 
 	const int total = SKIP + GAP + WINDOW;
 	std::vector<float> buf(total);
@@ -112,15 +121,16 @@ static float measure_decay_db_per_sec(float freq_hz, float requested_decay) {
 	pluck.trigger(0.5f, 0.1f, 1.0f);
 	pluck.process(buf);
 
-	const float rms1 = window_rms(buf, SKIP, WINDOW);
-	const float rms2 = window_rms(buf, SKIP + GAP, WINDOW);
+	const float p1 = goertzel_power_at(buf, SKIP,        WINDOW, freq_hz);
+	const float p2 = goertzel_power_at(buf, SKIP + GAP,  WINDOW, freq_hz);
 
 	// Center-of-window timestamps
-	const float t1 = float(SKIP + WINDOW / 2) / float(Config::SAMPLE_RATE);
+	const float t1 = float(SKIP +       WINDOW / 2) / float(Config::SAMPLE_RATE);
 	const float t2 = float(SKIP + GAP + WINDOW / 2) / float(Config::SAMPLE_RATE);
 
-	const float db1 = 20.0f * std::log10(rms1);
-	const float db2 = 20.0f * std::log10(rms2);
+	// Goertzel yields power (amplitude²); 10·log10 converts to dB
+	const float db1 = 10.0f * std::log10(p1);
+	const float db2 = 10.0f * std::log10(p2);
 
 	return (db2 - db1) / (t2 - t1); // negative: signal is decaying
 }
@@ -225,11 +235,13 @@ TEST_CASE("Pickup position comb filter nulls or boosts harmonics as predicted by
 	const float null_ratio  = harmonic_ratio_db(f0, harm_hz, pluck, 0.25f);
 	const float boost_ratio = harmonic_ratio_db(f0, harm_hz, pluck, 0.40f);
 
-	INFO("pickup=0.25: 2nd harmonic = " << null_ratio  << " dB  (expected << -20 dB)");
+	INFO("pickup=0.25: 2nd harmonic = " << null_ratio  << " dB  (expected << -40 dB)");
 	INFO("pickup=0.40: 2nd harmonic = " << boost_ratio << " dB  (expected > 0 dB)");
 
-	// null: cos(3π/2) = 0 — fwd and bwd 2nd-mode waves are exactly anti-phase
-	CHECK(null_ratio < -20.0f);
+	// null: cos(3π/2) = 0 — fwd and bwd 2nd-mode waves are exactly anti-phase.
+	// Theory predicts perfect cancellation; measurement floor is ~−43 dB set by
+	// linear-interpolation noise in the waveguide. Threshold at −40 dB leaves 3 dB of margin.
+	CHECK(null_ratio < -40.0f);
 
 	// boost: pickup at 0.40 lifts n=2 by |H(2)|/|H(1)| ≈ 2.6 relative to null position
 	CHECK(boost_ratio > 0.0f);
@@ -242,12 +254,8 @@ TEST_CASE("Pickup position comb filter nulls or boosts harmonics as predicted by
 
 // Test with combinations that keep feedback_gain below the 0.4995 cap. The cap engages for slow
 // decays at high frequencies; A3 (220 Hz) stays clear of it across all three decay rates tested
-// here.
-//
-// Tolerance is ±20% because the RMS includes harmonics that decay at different rates than the
-// fundamental: slow decays (10 dB/sec) measure slightly fast (harmonics persist and fade unevenly
-// across windows), while fast decays (30 dB/sec) measure slightly slow (window 2 is more purely
-// fundamental than window 1, making the slope appear shallower than the true fundamental rate).
+// here. Tolerance is ±10%: Goertzel measurement at the exact fundamental bin eliminates harmonic
+// bias entirely; residual error comes from fractional-delay interpolation in the waveguide.
 TEST_CASE("Pluck decay rate matches requested dB/sec", "[pluck][decay]") {
 	struct Case {
 		float freq_hz;
@@ -264,6 +272,6 @@ TEST_CASE("Pluck decay rate matches requested dB/sec", "[pluck][decay]") {
 		const float measured_rate = measure_decay_db_per_sec(freq, decay);
 		INFO("freq=" << freq << " Hz,  requested=" << decay
 		             << " dB/sec,  measured=" << -measured_rate << " dB/sec");
-		CHECK(std::abs(measured_rate) == Approx(decay).margin(decay * 0.20f));
+		CHECK(std::abs(measured_rate) == Approx(decay).margin(decay * 0.10f));
 	}
 }

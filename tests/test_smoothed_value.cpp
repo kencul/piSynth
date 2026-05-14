@@ -48,7 +48,7 @@ TEST_CASE("SmoothedValue reaches 1−e⁻¹ ≈ 63% of target after one time con
 
 	const float expected = 1.0f - std::exp(-1.0f); // ≈ 0.6321
 	INFO("after " << N << " samples: out=" << out << "  expected≈" << expected);
-	CHECK(out == Approx(expected).margin(0.01f));
+	CHECK(out == Approx(expected).margin(0.001f));
 }
 
 // ── Snap Threshold ──

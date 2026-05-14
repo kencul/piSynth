@@ -42,14 +42,14 @@ TEST_CASE("ADSR transitions through idle → attack → sustain → release → 
 	CHECK_FALSE(adsr.is_idle());
 	CHECK_FALSE(adsr.is_releasing());
 
-	while (adsr.process() < 1.0f) {}
+	{ int guard = SR / 5; while (guard-- > 0 && adsr.process() < 1.0f) {} }
 	CHECK_FALSE(adsr.is_idle());
 	CHECK_FALSE(adsr.is_releasing());
 
 	adsr.release();
 	CHECK(adsr.is_releasing());
 
-	while (!adsr.is_idle()) adsr.process();
+	{ int guard = SR / 5; while (guard-- > 0 && !adsr.is_idle()) adsr.process(); }
 	CHECK(adsr.is_idle());
 	CHECK(adsr.process() == 0.0f);
 }
@@ -85,7 +85,7 @@ TEST_CASE("ADSR sustain holds at 1.0", "[adsr]") {
 	adsr.set_release(1000.0f);
 	adsr.trigger();
 
-	while (adsr.process() < 1.0f) {}
+	{ int guard = SR / 5; while (guard-- > 0 && adsr.process() < 1.0f) {} }
 
 	for (int i = 0; i < 1000; ++i) CHECK(adsr.process() == 1.0f);
 }
@@ -104,7 +104,7 @@ TEST_CASE("ADSR release timing is within 2 samples of target", "[adsr]") {
 	adsr.set_release(release_ms);
 	adsr.trigger();
 
-	while (adsr.process() < 1.0f) {}
+	{ int guard = SR / 5; while (guard-- > 0 && adsr.process() < 1.0f) {} }
 	adsr.release();
 
 	const int actual = samples_to_idle(adsr, expected + 20);
@@ -127,7 +127,7 @@ TEST_CASE("ADSR kill reaches idle within KILL_MS", "[adsr]") {
 	adsr.set_release(1000.0f);
 	adsr.trigger();
 
-	while (adsr.process() < 1.0f) {}
+	{ int guard = SR / 5; while (guard-- > 0 && adsr.process() < 1.0f) {} }
 
 	adsr.kill();
 	CHECK(adsr.is_killing());
