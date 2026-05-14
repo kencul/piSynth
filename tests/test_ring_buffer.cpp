@@ -7,11 +7,11 @@
 #include "voice/note_event.hpp"
 #include "voice/ring_buffer.hpp"
 
-// ── helpers ──
+// ── Helpers ──
 
 static NoteEvent make_note(int n) { return {NoteEvent::Type::NoteOn, n, 64}; }
 
-// ── single-threaded correctness ──
+// ── Single-threaded Correctness ──
 
 TEST_CASE("RingBuffer pop on empty returns nullopt", "[ring_buffer]") {
 	RingBuffer<NoteEvent, 8> rb;
@@ -56,7 +56,7 @@ TEST_CASE("RingBuffer can be refilled after draining", "[ring_buffer]") {
 	for (int i = 10; i < 17; ++i) CHECK(rb.pop()->note == i);
 }
 
-// ── concurrent correctness ──
+// ── Concurrent Correctness ──
 
 // One producer pushes N note-on events; one consumer pops them. After joining, every event must
 // have arrived in order with no duplicates and no drops.
@@ -77,7 +77,7 @@ TEST_CASE("RingBuffer SPSC: all events arrive in order under concurrent access",
 
 	std::thread producer([&] {
 		for (int i = 0; i < N; ++i) {
-			// Spin until there is space — models how the MIDI thread retries
+			// Spin until there is space: models how the MIDI thread retries
 			while (!rb.push(make_note(i))) {}
 		}
 		done.store(true, std::memory_order_release);

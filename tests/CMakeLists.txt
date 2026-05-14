@@ -12,6 +12,8 @@ add_executable(synth_tests
     test_svf.cpp
     test_pluck.cpp
     test_ring_buffer.cpp
+    test_adsr.cpp
+    ${CMAKE_SOURCE_DIR}/src/adsr/adsr.cpp
     ${CMAKE_SOURCE_DIR}/src/effects/svf.cpp
     ${CMAKE_SOURCE_DIR}/src/osc/osc.cpp
 )
