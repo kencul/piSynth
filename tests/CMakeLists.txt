@@ -8,7 +8,6 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(Catch2)
 
 add_executable(synth_tests
-    test_main.cpp
     test_svf.cpp
     test_pluck.cpp
     test_ring_buffer.cpp
