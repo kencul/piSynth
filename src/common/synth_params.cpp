@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <pwd.h>
 #include <unistd.h>
@@ -215,20 +216,27 @@ void SynthParams::reset_to_defaults() {
 
 std::vector<std::string> SynthParams::get_preset_list() {
 	std::vector<std::string> presets;
-	if (!fs::exists(presets_dir)) return presets;
-
-	for (const auto &entry : fs::directory_iterator(presets_dir)) {
-		if (entry.path().extension() == ".json") {
-			presets.push_back(entry.path().stem().string());
+	try {
+		if (!fs::exists(presets_dir)) return presets;
+		for (const auto &entry : fs::directory_iterator(presets_dir)) {
+			if (entry.path().extension() == ".json") {
+				presets.push_back(entry.path().stem().string());
+			}
 		}
+	} catch (const fs::filesystem_error &e) {
+		std::cerr << "SynthParams: get_preset_list failed: " << e.what() << "\n";
 	}
 	return presets;
 }
 
 void SynthParams::delete_preset(const std::string &name) {
-	fs::path p = presets_dir / (name + ".json");
-	if (fs::exists(p)) {
-		fs::remove(p);
-		std::cout << "SynthParams: Deleted " << p << "\n";
+	try {
+		fs::path p = presets_dir / (name + ".json");
+		if (fs::exists(p)) {
+			fs::remove(p);
+			std::cout << "SynthParams: Deleted " << p << "\n";
+		}
+	} catch (const fs::filesystem_error &e) {
+		std::cerr << "SynthParams: delete_preset failed: " << e.what() << "\n";
 	}
 }
