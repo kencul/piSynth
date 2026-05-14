@@ -156,11 +156,15 @@ void SynthParams::save_to_file(const std::string &path) {
 	if (!f) return;
 
 	f << "{\n";
+	bool first = true;
 	for (int i = 0; i < COUNT; ++i) {
 		auto id = static_cast<ParamId>(i);
-		f << "  \"" << i << "\": " << get_normalized(id) << (i < COUNT - 1 ? ",\n" : "\n");
+		if (id == ParamId::MasterGain) continue;
+		if (!first) f << ",\n";
+		f << "  \"" << i << "\": " << get_normalized(id);
+		first = false;
 	}
-	f << "}";
+	f << "\n}";
 	std::cout << "SynthParams: Saved to " << path << "\n";
 }
 
@@ -179,7 +183,10 @@ void SynthParams::load_from_file(const std::string &path) {
 			f >> id;
 			f.ignore(256, ':');
 			f >> val;
-			if (id >= 0 && id < COUNT) { set_param(static_cast<ParamId>(id), val); }
+			if (id < 0 || id >= COUNT) continue;
+			auto param_id = static_cast<ParamId>(id);
+			if (param_id == ParamId::MasterGain) continue;
+			set_param(param_id, val);
 		}
 	}
 	std::cout << "SynthParams: Loaded from " << path << "\n";

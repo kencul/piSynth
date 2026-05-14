@@ -90,7 +90,8 @@ int main() {
 		params.load_preset(name);
 		for (int i = 0; i < static_cast<int>(SynthParams::ParamId::COUNT); ++i) {
 			auto id = static_cast<SynthParams::ParamId>(i);
-			auto d  = params.descriptor(id);
+			if (id == SynthParams::ParamId::MasterGain) continue;
+			auto d = params.descriptor(id);
 			web.broadcast(
 			    ParamMsg {id, params.get_normalized(id), params.get_value(id), d.name, d.unit});
 		}
