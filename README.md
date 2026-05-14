@@ -102,6 +102,7 @@ The DSP core is covered by a [Catch2](https://github.com/catchorg/Catch2) test s
 | `test_adsr.cpp` | Stage transitions; attack and release timing (±2 samples); sustain hold; kill ramp within `KILL_MS`; reset |
 | `test_ring_buffer.cpp` | FIFO ordering; full/empty conditions; SPSC correctness under concurrent access (validates `acquire`/`release` ordering on ARM) |
 | `test_smoothed_value.cpp` | Immediate snap on `reset()`; 63% convergence after one time constant; asymptotic tail termination via snap threshold; re-targeting |
+| `test_lfo.cpp` | Output bounds [−1, 1] for all five shapes; shape values at known phase landmarks (e.g. sine quarter-cycle, triangle peak/trough); cycle period within ±1 sample across rates 1–10 Hz — enabled by a double-precision phase accumulator that eliminates float drift over long cycles |
 
 To build and run:
 

@@ -14,9 +14,11 @@ add_executable(synth_tests
     test_ring_buffer.cpp
     test_adsr.cpp
     test_smoothed_value.cpp
+    test_lfo.cpp
     ${CMAKE_SOURCE_DIR}/src/adsr/adsr.cpp
     ${CMAKE_SOURCE_DIR}/src/effects/svf.cpp
     ${CMAKE_SOURCE_DIR}/src/effects/primitives/one_pole.cpp
+    ${CMAKE_SOURCE_DIR}/src/effects/primitives/lfo.cpp
     ${CMAKE_SOURCE_DIR}/src/common/smoothed_value.cpp
     ${CMAKE_SOURCE_DIR}/src/osc/osc.cpp
 )
