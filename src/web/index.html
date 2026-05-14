@@ -603,7 +603,7 @@ ws.onmessage = ({ data }) => {
     k.val = msg.normalized;
     k.el.textContent = fmtVal(msg.value, msg.unit);
     drawKnob(k.cvs, k.val);
-    clearPresetSelection();
+    if (msg.name !== 'Master Gain') clearPresetSelection();
   } else if (msg.type === 'config') {
     SPEC_SR   = msg.sample_rate;
     SPEC_BINS = msg.spectrum_bins;
