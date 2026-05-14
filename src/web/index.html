@@ -297,7 +297,7 @@ const pPanel = $('params-panel'), mCanvas = $('meter'), mCtx = mCanvas.getContex
 const sCanvas = $('string-canvas'), sCtx = sCanvas.getContext('2d');
 
 // ── Waveguide State ──
-const wgState = { displacement: new Float32Array(256), fret_pos: 0, pickup_pos: 0.1, active: false };
+const wgState = { displacement: new Float32Array(128), fret_pos: 0, pickup_pos: 0.1, active: false };
 
 // ── Spectrogram State ──
 let sgCanvas = null, sgCtx = null;
@@ -378,18 +378,13 @@ const drawString = () => {
 
   const halfW = Math.floor(w / 2);
   const cy = h / 2;
-  const POINTS = 256, HALF = POINTS / 2;
+  const POINTS = 128;
 
-  // — Left half: string, always resampled to fill halfW —
-  let mean = 0;
-  for (let i = 0; i < HALF; i++)
-    mean += wgState.displacement[i] + wgState.displacement[POINTS - 1 - i];
-  mean /= HALF;
-
+  // — Left half: physical string displacement (fwd + bwd waves combined in C++) —
   sCtx.beginPath();
-  for (let i = 0; i < HALF; i++) {
-    const x = i * halfW / (HALF - 1);
-    const y = cy - (wgState.displacement[i] + wgState.displacement[POINTS - 1 - i] - mean) * h;
+  for (let i = 0; i < POINTS; i++) {
+    const x = i * halfW / (POINTS - 1);
+    const y = cy - wgState.displacement[i] * h;
     i === 0 ? sCtx.moveTo(x, y) : sCtx.lineTo(x, y);
   }
   sCtx.strokeStyle = wgState.active ? '#55aaff' : '#2a4466';
@@ -517,7 +512,7 @@ ws.onmessage = ({ data }) => {
     wgState.fret_pos   = msg.fret_pos;
     wgState.pickup_pos = msg.pickup_pos;
     const src = msg.displacement;
-    for (let i = 0; i < 256; i++) wgState.displacement[i] = src[i];
+    for (let i = 0; i < 128; i++) wgState.displacement[i] = src[i];
   } else if (msg.type === 'spectrum') {
     if (!sgCanvas) return;
     const bins = msg.bins;

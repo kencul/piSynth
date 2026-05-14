@@ -65,15 +65,13 @@ void Pluck::snapshot(WaveguideSnapshot &out) const {
 	out.pickup_pos = pickup_pos_norm;
 	out.active     = true;
 
-	// Resample the full active string length into all POINTS slots.
-	// Every output point maps to a real delay line position — no zero-fill.
-	// t=0 is the nut end, t=1 is the fret/bridge end.
+	float wp = static_cast<float>(write_pos) - 1.0f; // write_pos is the next-write slot; wp-1 is the most recent valid sample
 	for (int i = 0; i < WaveguideSnapshot::POINTS; ++i) {
-		float t        = static_cast<float>(i)
-		               / static_cast<float>(WaveguideSnapshot::POINTS - 1);
-		float read_pos = static_cast<float>(write_pos) - half_delay_len
-		               + t * half_delay_len;
-		out.displacement[i] = interpolate_delay_line(read_pos);
+		float x         = static_cast<float>(i) / static_cast<float>(WaveguideSnapshot::POINTS - 1)
+		                * half_delay_len;
+		float right_going = interpolate_delay_line(wp - x);
+		float left_going  = interpolate_delay_line(wp - 2.0f * half_delay_len + x);
+		out.displacement[i] = right_going - left_going;
 	}
 }
 

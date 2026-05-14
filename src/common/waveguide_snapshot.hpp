@@ -2,10 +2,9 @@
 #include <array>
 
 struct WaveguideSnapshot {
-    static constexpr int POINTS = 256;
+    static constexpr int POINTS = 128;
 
-    // Displacement values resampled to POINTS.
-    // [0, active_points) = vibrating string; [active_points, POINTS) = zero (dead/stopped).
+    // Physical string displacement (forward + backward wave superposition) resampled to POINTS.
     std::array<float, POINTS> displacement {};
 
     // Normalized length of the vibrating string: half_delay_len / (MAX_DELAY/2).
