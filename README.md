@@ -7,7 +7,7 @@
 ## Technical Highlights
 
 * **Real-time Audio Engine**: ALSA PCM with a dedicated `SCHED_FIFO` priority-80 audio thread for deterministic, low-latency output.
-* **Physical Modeling**: Karplus-Strong waveguide synthesis with tuning-compensated feedback gain, configurable pluck and pickup positions, and a DC blocker.
+* **Physical Modeling**: Extended Karplus-Strong plucked string synthesis. Triangle-wave initialization with a configurable pluck position shapes the attack character; a waveguide-inspired pickup position applies a harmonic comb filter to the output. Tuning-compensated feedback gain and a DC blocker complete the model.
 * **Thread Safety on ARM**: C++ atomics with explicit `acquire`/`release` ordering across the MIDI, audio, and web threads, accounting for ARM's weak memory model.
 * **Advanced DSP**:
   * Zero-Delay Feedback State Variable Filter (SVF) with MIDI CC keytracking
@@ -90,6 +90,28 @@ All executables land in `build/bin/`.
 ```
 
 The program will auto-connect any plugged-in MIDI controllers and scan for a USB audio output. Open `http://<hostname>.local:9002` in a browser on the same network to access the control dashboard.
+
+## Tests
+
+The DSP core is covered by a [Catch2](https://github.com/catchorg/Catch2) test suite in [`tests/`](./tests/). Each test validates a quantitative claim about the audio engine — not just that code runs, but that it produces the correct signal.
+
+| File | What is verified |
+| :--- | :--- |
+| `test_pluck.cpp` | Pitch accuracy (±2 cents, via autocorrelation with parabolic interpolation); decay rate (±20% of requested dB/sec); DC blocker convergence; pickup position comb filter (null at −42 dB, boost at +1.9 dB vs fundamental) |
+| `test_svf.cpp` | −6 dB at cutoff for Q = 0.5; −3 dB point at cutoff with Butterworth Q = 1/√2; passband flatness; −40 dB/decade stopband rolloff; resonance peak |
+| `test_adsr.cpp` | Stage transitions; attack and release timing (±2 samples); sustain hold; kill ramp within `KILL_MS`; reset |
+| `test_ring_buffer.cpp` | FIFO ordering; full/empty conditions; SPSC correctness under concurrent access (validates `acquire`/`release` ordering on ARM) |
+| `test_smoothed_value.cpp` | Immediate snap on `reset()`; 63% convergence after one time constant; asymptotic tail termination via snap threshold; re-targeting |
+
+To build and run:
+
+```bash
+cd build
+ninja synth_tests
+ctest --output-on-failure
+```
+
+---
 
 ## Credits
 - [uWebSockets](https://github.com/uNetworking/uWebSockets) by Alex Hultman (Apache 2.0)
