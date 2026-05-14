@@ -10,7 +10,9 @@ FetchContent_MakeAvailable(Catch2)
 add_executable(synth_tests
     test_main.cpp
     test_svf.cpp
+    test_pluck.cpp
     ${CMAKE_SOURCE_DIR}/src/effects/svf.cpp
+    ${CMAKE_SOURCE_DIR}/src/osc/osc.cpp
 )
 
 target_include_directories(synth_tests PRIVATE
