@@ -125,6 +125,42 @@ static float measure_decay_db_per_sec(float freq_hz, float requested_decay) {
 	return (db2 - db1) / (t2 - t1); // negative: signal is decaying
 }
 
+// ── DC Blocker ──
+
+// The DC blocker is y[n] = x[n] − x[n-1] + 0.9999·y[n-1] with τ = 10000 samples. The triangle
+// initialization produces an early mean of ~23% of amplitude; after 2.2τ (22050 samples) the
+// residual is below 2%: a greater than 10x reduction.
+TEST_CASE("Pluck DC blocker reduces initial DC offset by at least 10x after settling",
+          "[pluck][dc]") {
+	Config::SAMPLE_RATE = 44100;
+
+	const int EARLY_N = 1024;
+	const int SETTLE  = 22050; // 0.5 s = 2.2 time constants
+	const int LATE_N  = 4096;
+
+	Pluck pluck;
+	pluck.set_frequency(220.0f);
+	pluck.set_decay(5.0f);
+	pluck.trigger(0.5f, 0.1f, 1.0f);
+
+	std::vector<float> buf(SETTLE + LATE_N);
+	pluck.process(buf);
+
+	double early_mean = 0.0;
+	for (int i = 0; i < EARLY_N; ++i) early_mean += buf[i];
+	early_mean /= EARLY_N;
+
+	double late_mean = 0.0;
+	for (int i = SETTLE; i < SETTLE + LATE_N; ++i) late_mean += buf[i];
+	late_mean /= LATE_N;
+
+	INFO("early mean=" << early_mean << ",  late mean=" << late_mean
+	                   << ",  ratio=" << std::abs(late_mean) / std::abs(early_mean));
+	CHECK(std::abs(float(late_mean)) < std::abs(float(early_mean)) * 0.1f);
+}
+
+// ── Decay Rate ──
+
 // Test with combinations that keep feedback_gain below the 0.4995 cap. The cap engages for slow
 // decays at high frequencies; A3 (220 Hz) stays clear of it across all three decay rates tested
 // here.
