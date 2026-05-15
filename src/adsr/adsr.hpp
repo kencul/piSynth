@@ -1,5 +1,8 @@
 #pragma once
 
+// Attack-Sustain-Release envelope. A separate Decay stage is intentionally omitted:
+// amplitude decay is handled by the waveguide feedback_gain in Pluck, so this envelope
+// only needs to gate the voice on (attack), hold it (sustain), and release it.
 class ADSR {
 public:
 	ADSR() = default;

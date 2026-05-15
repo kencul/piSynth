@@ -13,7 +13,7 @@ public:
 	float process(); // returns -1.0 to 1.0
 
 private:
-	float phase     = 0.0f;
-	float phase_inc = 0.0f;
-	Shape shape     = Shape::Sine;
+	double phase     = 0.0;
+	double phase_inc = 0.0;
+	Shape shape      = Shape::Sine;
 };

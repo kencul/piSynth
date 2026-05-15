@@ -22,3 +22,6 @@ add_subdirectory(chapters/07_pluck_synth_effects)
 add_subdirectory(chapters/08_web_ui)
 add_subdirectory(chapters/09_plug_and_play)
 add_subdirectory(src)
+
+enable_testing()
+add_subdirectory(tests)
