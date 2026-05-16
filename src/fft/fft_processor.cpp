@@ -52,10 +52,15 @@ template <int N> std::optional<SpectrumMsg> FftProcessor::process(FftAccumulator
 
 	SpectrumMsg msg;
 	for (int b = 0; b < OUT_BINS; b++) {
-		float t     = static_cast<float>(b) / (OUT_BINS - 1);
-		float freq  = std::pow(10.0f, log_min + t * (log_max - log_min));
-		int k       = std::clamp(static_cast<int>(freq / bin_hz), 1, BIN_COUNT - 1);
-		msg.bins[b] = bin_to_db(out_buf[2 * k], out_buf[2 * k + 1]);
+		float t        = static_cast<float>(b) / (OUT_BINS - 1);
+		float freq     = std::pow(10.0f, log_min + t * (log_max - log_min));
+		float bin_idx  = std::clamp(freq / bin_hz, 1.0f, static_cast<float>(BIN_COUNT - 1));
+		int k0         = static_cast<int>(bin_idx);
+		int k1         = std::min(k0 + 1, BIN_COUNT - 1);
+		float fract    = bin_idx - static_cast<float>(k0);
+		float db0      = bin_to_db(out_buf[2 * k0], out_buf[2 * k0 + 1]);
+		float db1      = bin_to_db(out_buf[2 * k1], out_buf[2 * k1 + 1]);
+		msg.bins[b]    = db0 * (1.0f - fract) + db1 * fract;
 	}
 	return msg;
 }
