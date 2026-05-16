@@ -17,11 +17,15 @@ target_compile_definitions(uSockets PUBLIC
     UWS_NO_ZLIB=1
 )
 
-file(READ ${CMAKE_CURRENT_SOURCE_DIR}/web/index.html HTML_CONTENT)
-configure_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/web/html_content.cpp.in
-    ${CMAKE_CURRENT_BINARY_DIR}/web/html_content.cpp
-    @ONLY
+add_custom_command(
+    OUTPUT  ${CMAKE_CURRENT_BINARY_DIR}/web/html_content.cpp
+    COMMAND ${CMAKE_COMMAND}
+        -DHTML_INPUT=${CMAKE_CURRENT_SOURCE_DIR}/web/index.html
+        -DCPP_OUTPUT=${CMAKE_CURRENT_BINARY_DIR}/web/html_content.cpp
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/web/embed_html.cmake
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/web/index.html
+            ${CMAKE_CURRENT_SOURCE_DIR}/web/embed_html.cmake
+    COMMENT "Embedding index.html"
 )
 
 add_executable(synth

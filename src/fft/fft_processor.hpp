@@ -12,6 +12,7 @@ public:
 	static constexpr int FFT_SIZE  = Config::FFT_SIZE;
 	static constexpr int BIN_COUNT = FFT_SIZE / 2;
 	static constexpr int OUT_BINS  = Config::FFT_OUT_BINS;
+	static constexpr int HOP_SIZE  = FFT_SIZE / 2; // 50% overlap
 
 	void init();
 	void destroy();
@@ -26,9 +27,11 @@ private:
 
 	PFFFT_Setup *setup = nullptr;
 	std::vector<float> window;    // Hann window coefficients
-	std::vector<float> in_buf;    // windowed input, pffft-aligned
-	std::vector<float> out_buf;   // pffft output, interleaved re/im
-	std::vector<float> work_buf;  // pffft scratch space
-	std::vector<float> accum_buf; // staging buffer drained from accumulator
-	std::array<float, OUT_BINS> bins {};
+	std::vector<float> in_buf;   // windowed input, pffft-aligned
+	std::vector<float> out_buf;  // pffft output, interleaved re/im
+	std::vector<float> work_buf; // pffft scratch space
+
+	std::array<float, FFT_SIZE> overlap_buf {}; // last FFT_SIZE samples, circular
+	int overlap_write = 0;                       // write head into overlap_buf
+	int hop_counter   = 0;                       // samples since last FFT frame
 };
