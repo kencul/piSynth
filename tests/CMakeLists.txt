@@ -33,3 +33,17 @@ target_link_libraries(synth_tests PRIVATE
 include(CTest)
 include(Catch)
 catch_discover_tests(synth_tests)
+
+add_executable(fft_debug
+    test_fft_stability.cpp
+    ${CMAKE_SOURCE_DIR}/src/fft/fft_processor.cpp
+)
+
+target_include_directories(fft_debug PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/deps/pffft/include/pffft
+)
+
+target_link_libraries(fft_debug PRIVATE
+    PFFFT::PFFFT
+)
