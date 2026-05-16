@@ -12,6 +12,7 @@ public:
 	static constexpr int FFT_SIZE  = Config::FFT_SIZE;
 	static constexpr int BIN_COUNT = FFT_SIZE / 2;
 	static constexpr int OUT_BINS  = Config::FFT_OUT_BINS;
+	static constexpr int HOP_SIZE  = FFT_SIZE / 2; // 50% overlap
 
 	void init();
 	void destroy();

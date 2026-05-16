@@ -44,7 +44,7 @@ template <int N> std::optional<SpectrumMsg> FftProcessor::process(FftAccumulator
 		for (int i = 0; i < n; ++i) {
 			overlap_buf[overlap_write] = chunk[i];
 			overlap_write              = (overlap_write + 1) % FFT_SIZE;
-			if (++hop_counter >= FFT_SIZE / 2) {
+			if (++hop_counter >= HOP_SIZE) {
 				hop_counter = 0;
 				// Copy the last FFT_SIZE samples (with ring-buffer wraparound)
 				// into in_buf, applying the Blackman-Harris window.
