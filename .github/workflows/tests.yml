@@ -25,7 +25,7 @@ jobs:
           key: catch2-v3.8.1
 
       - name: Configure
-        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON
 
       - name: Build tests
         run: cmake --build build --target synth_tests

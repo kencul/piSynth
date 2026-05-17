@@ -288,8 +288,11 @@ const SMOOTHING_DECAY  = 0.9;
 
 // ── State ──
 const meter = { rms: [0,0], peakHeld: [-60,-60], peakFall: [-60,-60], holdEnd: [0,0] };
+let targetRms = [0, 0];
+const RMS_ATTACK_TAU = 0.02;  // 20ms — fast enough to catch pluck transients
+const RMS_DECAY_TAU  = 0.3;  // 300ms — smooth decay tail
 const knobs = {};
-let prevT = 0;
+let prevT = -1;
 
 const pPanel = $('params-panel'), mCanvas = $('meter'), mCtx = mCanvas.getContext('2d');
 const sCanvas = $('string-canvas'), sCtx = sCanvas.getContext('2d');
@@ -420,8 +423,13 @@ const drawString = () => {
 
 const draw = now => {
   requestAnimationFrame(draw);
+  if (prevT < 0) { prevT = now; return; }
   drawString();
   const dt = Math.min((now - prevT) / 1000, 0.1); prevT = now;
+  for (let ch = 0; ch < 2; ch++) {
+    const tau = targetRms[ch] > meter.rms[ch] ? RMS_ATTACK_TAU : RMS_DECAY_TAU;
+    meter.rms[ch] += (targetRms[ch] - meter.rms[ch]) * (1 - Math.exp(-dt / tau));
+  }
   const w = mCanvas.width, h = mCanvas.height, d = dpr();
   if (!w || !h) return;
   mCtx.clearRect(0, 0, w, h);
@@ -498,7 +506,7 @@ ws.onmessage = ({ data }) => {
     console.log('Received message:', msg);
   }
   if (msg.type === 'meter') {
-    meter.rms = [msg.rms_l, msg.rms_r];
+    targetRms = [msg.rms_l, msg.rms_r];
     [lin2db(msg.peak_l), lin2db(msg.peak_r)].forEach((pk, ch) => {
       if (pk > meter.peakHeld[ch]) {
         meter.peakHeld[ch] = meter.peakFall[ch] = pk;

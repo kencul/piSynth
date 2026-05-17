@@ -81,6 +81,19 @@ cmake ..
 ninja
 ```
 
+By default this builds only the main synth binary. The chapter examples and test suite are opt-in to keep incremental builds fast:
+
+```bash
+# Build with the test suite
+cmake .. -DBUILD_TESTS=ON
+ninja synth_tests
+ctest --output-on-failure
+
+# Build with all chapter example binaries
+cmake .. -DBUILD_CHAPTERS=ON
+ninja
+```
+
 All executables land in `build/bin/`.
 
 ### 6. Run
@@ -90,6 +103,8 @@ All executables land in `build/bin/`.
 ```
 
 The program will auto-connect any plugged-in MIDI controllers and scan for a USB audio output. Open `http://<hostname>.local:9002` in a browser on the same network to access the control dashboard.
+
+> This is for initial setup and development. Once the systemd service is installed (see [Boot on Launch](src/README.md#boot-on-launch) in `src/README.md`), stop it before running the binary directly, as both compete for the audio and MIDI devices.
 
 ## Tests
 

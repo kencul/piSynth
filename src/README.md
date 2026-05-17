@@ -13,6 +13,19 @@ ninja
 
 > uWebSockets and PFFFT are included as submodules under `deps/`. If the directory is empty, run `git submodule update --init` from the repo root before building.
 
+The test suite and chapter examples are excluded from the default build to keep compile times short. Enable them explicitly when needed:
+
+```bash
+# Build with the test suite
+cmake .. -DBUILD_TESTS=ON
+ninja synth_tests
+ctest --output-on-failure
+
+# Build with all chapter example binaries
+cmake .. -DBUILD_CHAPTERS=ON
+ninja
+```
+
 Launching will auto-connect any plugged-in MIDI controllers, scan for a USB audio output, and start a web server. Run `hostname` in the Pi console to find the hostname, then open `http://<hostname>.local:9002` in a browser on the same network.
 
 ## Configuration
@@ -138,3 +151,26 @@ To have the synth start automatically when the Pi boots:
    ```
 
 The synth will now launch on every boot. Connect an audio and MIDI device, and optionally open the web UI with no command line interaction required.
+
+## Development Workflow
+
+Once the service is installed and running, `./bin/synth` will conflict with it — both compete for the ALSA and MIDI devices. Stop the service first before running the binary directly:
+
+```bash
+sudo systemctl stop pi-synth.service
+./build/bin/synth          # test your changes
+# Ctrl+C when done
+```
+
+To rebuild and update the installed binary in one step:
+
+```bash
+sudo systemctl stop pi-synth.service
+ninja -C build
+sudo cp build/bin/synth /usr/local/bin/pi-synth
+sudo setcap cap_sys_nice+ep /usr/local/bin/pi-synth
+sudo systemctl daemon-reload
+sudo systemctl start pi-synth.service
+```
+
+> `setcap` must be re-applied after every copy. Copying a binary strips its file capabilities.

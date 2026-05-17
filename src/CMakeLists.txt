@@ -7,7 +7,7 @@ list(FILTER USOCKETS_SOURCES EXCLUDE REGEX ".*openssl.*")
 list(FILTER USOCKETS_SOURCES EXCLUDE REGEX ".*wolfssl.*")
 list(FILTER USOCKETS_SOURCES EXCLUDE REGEX ".*boringssl.*")
 
-# add_library(uSockets STATIC ${USOCKETS_SOURCES})
+add_library(uSockets STATIC ${USOCKETS_SOURCES})
 target_include_directories(uSockets PUBLIC
     ${CMAKE_SOURCE_DIR}/deps/uWebSockets/uSockets/src
     ${CMAKE_SOURCE_DIR}/deps/pffft/include/pffft
