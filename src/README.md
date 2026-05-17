@@ -105,6 +105,29 @@ Parameters are controlled via MIDI CC messages. Per-sample and per-block paramet
 | 27 | Reverb Cutoff    | 1kHz – 10kHz      | Exp    | Reverb |
 | 28 | Reverb Mix       | 0.0 – 1.0         | Linear | Reverb |
 
+## Development Workflow
+
+Once the service is installed and running, `./bin/synth` will conflict with it — both compete for the ALSA and MIDI devices. Stop the service first before running the binary directly:
+
+```bash
+sudo systemctl stop pi-synth.service
+./build/bin/synth          # test your changes
+# Ctrl+C when done
+```
+
+To rebuild and update the installed binary in one step:
+
+```bash
+sudo systemctl stop pi-synth.service
+ninja -C build
+sudo cp build/bin/synth /usr/local/bin/pi-synth
+sudo setcap cap_sys_nice+ep /usr/local/bin/pi-synth
+sudo systemctl daemon-reload
+sudo systemctl start pi-synth.service
+```
+
+> `setcap` must be re-applied after every copy. Copying a binary strips its file capabilities.
+
 ## Boot on Launch
 
 To have the synth start automatically when the Pi boots:

@@ -98,6 +98,8 @@ All executables land in `build/bin/`.
 
 The program will auto-connect any plugged-in MIDI controllers and scan for a USB audio output. Open `http://<hostname>.local:9002` in a browser on the same network to access the control dashboard.
 
+> This is for initial setup and development. Once the systemd service is installed (see [Boot on Launch](src/README.md#boot-on-launch) in `src/README.md`), stop it before running the binary directly, as both compete for the audio and MIDI devices.
+
 ## Tests
 
 The DSP core is covered by a [Catch2](https://github.com/catchorg/Catch2) test suite in [`tests/`](./tests/). Each test validates a quantitative claim about the audio engine — not just that code runs, but that it produces the correct signal.
