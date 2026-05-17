@@ -30,6 +30,8 @@ target_link_libraries(synth_tests PRIVATE
     Catch2::Catch2WithMain
 )
 
+target_precompile_headers(synth_tests PRIVATE <catch2/catch_all.hpp>)
+
 include(CTest)
 include(Catch)
 catch_discover_tests(synth_tests)

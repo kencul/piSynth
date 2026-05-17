@@ -13,6 +13,13 @@ ninja
 
 > uWebSockets and PFFFT are included as submodules under `deps/`. If the directory is empty, run `git submodule update --init` from the repo root before building.
 
+The test suite and chapter examples are excluded from the default build to keep compile times short. Enable them explicitly when needed:
+
+```bash
+cmake .. -DBUILD_TESTS=ON    # builds synth_tests; run with: ctest --output-on-failure
+cmake .. -DBUILD_CHAPTERS=ON # builds all chapter example binaries
+```
+
 Launching will auto-connect any plugged-in MIDI controllers, scan for a USB audio output, and start a web server. Run `hostname` in the Pi console to find the hostname, then open `http://<hostname>.local:9002` in a browser on the same network.
 
 ## Configuration

@@ -81,6 +81,13 @@ cmake ..
 ninja
 ```
 
+By default this builds only the main synth binary. The chapter examples and test suite are opt-in to keep incremental builds fast:
+
+```bash
+cmake .. -DBUILD_TESTS=ON      # add the Catch2 test suite
+cmake .. -DBUILD_CHAPTERS=ON   # add the chapter example binaries
+```
+
 All executables land in `build/bin/`.
 
 ### 6. Run
