@@ -108,7 +108,7 @@ The program will auto-connect any plugged-in MIDI controllers and scan for a USB
 
 ## Tests
 
-The DSP core is covered by a [Catch2](https://github.com/catchorg/Catch2) test suite in [`tests/`](./tests/). Each test validates a quantitative claim about the audio engine — not just that code runs, but that it produces the correct signal.
+The DSP core is covered by a [doctest](https://github.com/doctest/doctest) test suite in [`tests/`](./tests/). Each test validates a quantitative claim about the audio engine — not just that code runs, but that it produces the correct signal.
 
 | File | What is verified |
 | :--- | :--- |

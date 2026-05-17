@@ -19,7 +19,6 @@ target_include_directories(synth_tests PRIVATE
     ${CMAKE_SOURCE_DIR}/tests
 )
 
-include(CTest)
 add_test(NAME synth_tests COMMAND synth_tests)
 
 add_executable(fft_debug

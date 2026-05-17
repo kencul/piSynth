@@ -4,7 +4,7 @@ project(PiSynth)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-option(BUILD_TESTS    "Build the Catch2 test suite"   OFF)
+option(BUILD_TESTS    "Build the doctest test suite"   OFF)
 option(BUILD_CHAPTERS "Build the chapter example bins" OFF)
 
 # Find the ALSA library
