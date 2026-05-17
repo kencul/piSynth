@@ -290,7 +290,7 @@ const SMOOTHING_DECAY  = 0.9;
 const meter = { rms: [0,0], peakHeld: [-60,-60], peakFall: [-60,-60], holdEnd: [0,0] };
 let targetRms = [0, 0];
 const RMS_ATTACK_TAU = 0.02;  // 20ms — fast enough to catch pluck transients
-const RMS_DECAY_TAU  = 0.30;  // 300ms — smooth decay tail
+const RMS_DECAY_TAU  = 0.3;  // 300ms — smooth decay tail
 const knobs = {};
 let prevT = -1;
 

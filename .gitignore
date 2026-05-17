@@ -1,3 +1,9 @@
 /build
 todo.md
 /.claude
+
+# In-source CMake artifacts (if cmake is accidentally run outside build/)
+CMakeFiles/
+cmake_install.cmake
+Makefile
+CMakeCache.txt
