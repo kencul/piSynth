@@ -1,4 +1,5 @@
-#include <catch2/catch_test_macros.hpp>
+#include "doctest.h"
+#include <cstdlib>
 
 #include "adsr/adsr.hpp"
 #include "config.hpp"
@@ -23,7 +24,7 @@ static int samples_to_idle(ADSR &adsr, int max_samples) {
 
 // ── Initial State ──
 
-TEST_CASE("ADSR starts idle with zero output", "[adsr]") {
+TEST_CASE("ADSR starts idle with zero output") {
 	Config::SAMPLE_RATE = SR;
 	ADSR adsr;
 	CHECK(adsr.is_idle());
@@ -32,7 +33,7 @@ TEST_CASE("ADSR starts idle with zero output", "[adsr]") {
 
 // ── Stage Transitions ──
 
-TEST_CASE("ADSR transitions through idle → attack → sustain → release → idle", "[adsr]") {
+TEST_CASE("ADSR transitions through idle → attack → sustain → release → idle") {
 	Config::SAMPLE_RATE = SR;
 	ADSR adsr;
 	adsr.set_attack(10.0f);
@@ -57,7 +58,7 @@ TEST_CASE("ADSR transitions through idle → attack → sustain → release → 
 // ── Attack Timing ──
 
 // rate = 1 / (ms * 0.001 * SR), so the linear ramp hits 1.0 in exactly ms * 0.001 * SR samples.
-TEST_CASE("ADSR attack timing is within 2 samples of target", "[adsr]") {
+TEST_CASE("ADSR attack timing is within 2 samples of target") {
 	Config::SAMPLE_RATE = SR;
 
 	constexpr float attack_ms = 100.0f;
@@ -78,7 +79,7 @@ TEST_CASE("ADSR attack timing is within 2 samples of target", "[adsr]") {
 
 // ── Sustain Hold ──
 
-TEST_CASE("ADSR sustain holds at 1.0", "[adsr]") {
+TEST_CASE("ADSR sustain holds at 1.0") {
 	Config::SAMPLE_RATE = SR;
 	ADSR adsr;
 	adsr.set_attack(1.0f);
@@ -92,7 +93,7 @@ TEST_CASE("ADSR sustain holds at 1.0", "[adsr]") {
 
 // ── Release Timing ──
 
-TEST_CASE("ADSR release timing is within 2 samples of target", "[adsr]") {
+TEST_CASE("ADSR release timing is within 2 samples of target") {
 	Config::SAMPLE_RATE = SR;
 
 	constexpr float release_ms = 200.0f;
@@ -117,7 +118,7 @@ TEST_CASE("ADSR release timing is within 2 samples of target", "[adsr]") {
 // ── Kill ──
 
 // kill() ramps from the current level to 0 over KILL_MS — the fast voice-stealing path.
-TEST_CASE("ADSR kill reaches idle within KILL_MS", "[adsr]") {
+TEST_CASE("ADSR kill reaches idle within KILL_MS") {
 	Config::SAMPLE_RATE = SR;
 
 	const int kill_budget = int(Config::KILL_MS * 0.001f * SR) + 2;
@@ -141,7 +142,7 @@ TEST_CASE("ADSR kill reaches idle within KILL_MS", "[adsr]") {
 
 // ── Reset ──
 
-TEST_CASE("ADSR reset returns to idle with zero output mid-attack", "[adsr]") {
+TEST_CASE("ADSR reset returns to idle with zero output mid-attack") {
 	Config::SAMPLE_RATE = SR;
 	ADSR adsr;
 	adsr.set_attack(100.0f);

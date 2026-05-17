@@ -1,17 +1,15 @@
-#include <catch2/catch_approx.hpp>
-#include <catch2/catch_test_macros.hpp>
+#include "doctest.h"
 #include <algorithm>
 #include <cmath>
 
 #include "config.hpp"
 #include "effects/primitives/lfo.hpp"
 
-using Catch::Approx;
 
 // ── Range ──
 
 // All shapes must stay within [−1, 1] for every sample across a full cycle.
-TEST_CASE("LFO all shapes output within [-1, 1]", "[lfo]") {
+TEST_CASE("LFO all shapes output within [-1, 1]") {
 	Config::SAMPLE_RATE = 44100;
 	const int N         = 44100; // 1 Hz rate → one full cycle
 
@@ -39,47 +37,47 @@ TEST_CASE("LFO all shapes output within [-1, 1]", "[lfo]") {
 // set_phase_offset(p) writes p directly into the phase accumulator, so the next process() call
 // reads the shape value at that exact phase before advancing.
 
-TEST_CASE("LFO Sine: sin(2π·phase) at quarter-cycle landmarks", "[lfo]") {
+TEST_CASE("LFO Sine: sin(2π·phase) at quarter-cycle landmarks") {
 	Config::SAMPLE_RATE = 44100;
 	LFO lfo;
 	lfo.set_shape(LFO::Shape::Sine);
 	lfo.set_rate(1.0f);
 
 	lfo.set_phase_offset(0.0f);
-	CHECK(lfo.process() == Approx(0.0f).margin(1e-6f));  // sin(0) = 0
+	CHECK(std::abs(lfo.process() - (0.0f)) <= 1e-6f);  // sin(0) = 0
 
 	lfo.set_phase_offset(0.25f);
-	CHECK(lfo.process() == Approx(1.0f).margin(1e-6f));  // sin(π/2) = 1
+	CHECK(std::abs(lfo.process() - (1.0f)) <= 1e-6f);  // sin(π/2) = 1
 
 	lfo.set_phase_offset(0.5f);
-	CHECK(lfo.process() == Approx(0.0f).margin(1e-6f));  // sin(π) ≈ 0
+	CHECK(std::abs(lfo.process() - (0.0f)) <= 1e-6f);  // sin(π) ≈ 0
 
 	lfo.set_phase_offset(0.75f);
-	CHECK(lfo.process() == Approx(-1.0f).margin(1e-6f)); // sin(3π/2) = −1
+	CHECK(std::abs(lfo.process() - (-1.0f)) <= 1e-6f); // sin(3π/2) = −1
 }
 
 // Formula: 1 − 4·|phase − 0.5|  → trough at 0, zero-crossing at 0.25 and 0.75, peak at 0.5
-TEST_CASE("LFO Triangle: trough at phase 0, peak at 0.5", "[lfo]") {
+TEST_CASE("LFO Triangle: trough at phase 0, peak at 0.5") {
 	Config::SAMPLE_RATE = 44100;
 	LFO lfo;
 	lfo.set_shape(LFO::Shape::Triangle);
 	lfo.set_rate(1.0f);
 
 	lfo.set_phase_offset(0.0f);
-	CHECK(lfo.process() == Approx(-1.0f).margin(1e-6f)); // 1 − 4·0.5 = −1
+	CHECK(std::abs(lfo.process() - (-1.0f)) <= 1e-6f); // 1 − 4·0.5 = −1
 
 	lfo.set_phase_offset(0.25f);
-	CHECK(lfo.process() == Approx(0.0f).margin(1e-6f));  // 1 − 4·0.25 = 0
+	CHECK(std::abs(lfo.process() - (0.0f)) <= 1e-6f);  // 1 − 4·0.25 = 0
 
 	lfo.set_phase_offset(0.5f);
-	CHECK(lfo.process() == Approx(1.0f).margin(1e-6f));  // 1 − 4·0 = 1
+	CHECK(std::abs(lfo.process() - (1.0f)) <= 1e-6f);  // 1 − 4·0 = 1
 
 	lfo.set_phase_offset(0.75f);
-	CHECK(lfo.process() == Approx(0.0f).margin(1e-6f));  // 1 − 4·0.25 = 0
+	CHECK(std::abs(lfo.process() - (0.0f)) <= 1e-6f);  // 1 − 4·0.25 = 0
 }
 
 // Square returns the literal constants 1.0f and −1.0f with no arithmetic: exact equality.
-TEST_CASE("LFO Square: +1 in first half, −1 in second half", "[lfo]") {
+TEST_CASE("LFO Square: +1 in first half, −1 in second half") {
 	Config::SAMPLE_RATE = 44100;
 	LFO lfo;
 	lfo.set_shape(LFO::Shape::Square);
@@ -99,31 +97,31 @@ TEST_CASE("LFO Square: +1 in first half, −1 in second half", "[lfo]") {
 }
 
 // Formula: 2·phase − 1  → −1 at phase 0, 0 at phase 0.5
-TEST_CASE("LFO SawUp: rises from -1 at phase 0 through 0 at phase 0.5", "[lfo]") {
+TEST_CASE("LFO SawUp: rises from -1 at phase 0 through 0 at phase 0.5") {
 	Config::SAMPLE_RATE = 44100;
 	LFO lfo;
 	lfo.set_shape(LFO::Shape::SawUp);
 	lfo.set_rate(1.0f);
 
 	lfo.set_phase_offset(0.0f);
-	CHECK(lfo.process() == Approx(-1.0f).margin(1e-6f));
+	CHECK(std::abs(lfo.process() - (-1.0f)) <= 1e-6f);
 
 	lfo.set_phase_offset(0.5f);
-	CHECK(lfo.process() == Approx(0.0f).margin(1e-6f));
+	CHECK(std::abs(lfo.process() - (0.0f)) <= 1e-6f);
 }
 
 // Formula: 1 − 2·phase  → +1 at phase 0, 0 at phase 0.5
-TEST_CASE("LFO SawDown: falls from +1 at phase 0 through 0 at phase 0.5", "[lfo]") {
+TEST_CASE("LFO SawDown: falls from +1 at phase 0 through 0 at phase 0.5") {
 	Config::SAMPLE_RATE = 44100;
 	LFO lfo;
 	lfo.set_shape(LFO::Shape::SawDown);
 	lfo.set_rate(1.0f);
 
 	lfo.set_phase_offset(0.0f);
-	CHECK(lfo.process() == Approx(1.0f).margin(1e-6f));
+	CHECK(std::abs(lfo.process() - (1.0f)) <= 1e-6f);
 
 	lfo.set_phase_offset(0.5f);
-	CHECK(lfo.process() == Approx(0.0f).margin(1e-6f));
+	CHECK(std::abs(lfo.process() - (0.0f)) <= 1e-6f);
 }
 
 // ── Rate Accuracy ──
@@ -131,7 +129,7 @@ TEST_CASE("LFO SawDown: falls from +1 at phase 0 through 0 at phase 0.5", "[lfo]
 // SawUp produces a large discontinuity (~2.0) at the phase wrap while normal per-sample steps are
 // tiny (2 · phase_inc). This makes the wrap easy to detect and gives an unambiguous period count.
 // Float accumulation over a full cycle can shift the wrap point by at most ±1 sample.
-TEST_CASE("LFO rate produces correct cycle period in samples", "[lfo]") {
+TEST_CASE("LFO rate produces correct cycle period in samples") {
 	Config::SAMPLE_RATE = 44100;
 
 	for (float rate_hz : {1.0f, 2.0f, 5.0f, 10.0f}) {
@@ -161,7 +159,7 @@ TEST_CASE("LFO rate produces correct cycle period in samples", "[lfo]") {
 
 // ── Reset ──
 
-TEST_CASE("LFO reset() returns output to phase-0 value", "[lfo]") {
+TEST_CASE("LFO reset() returns output to phase-0 value") {
 	Config::SAMPLE_RATE = 44100;
 	LFO lfo;
 	lfo.set_shape(LFO::Shape::Sine);
@@ -172,5 +170,5 @@ TEST_CASE("LFO reset() returns output to phase-0 value", "[lfo]") {
 	for (int i = 0; i < 100; ++i) lfo.process();
 
 	lfo.reset();
-	CHECK(lfo.process() == Approx(first).margin(1e-6f));
+	CHECK(std::abs(lfo.process() - (first)) <= 1e-6f);
 }

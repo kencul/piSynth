@@ -1,13 +1,5 @@
-include(FetchContent)
-
-FetchContent_Declare(
-    Catch2
-    GIT_REPOSITORY https://github.com/catchorg/Catch2.git
-    GIT_TAG        v3.8.1
-)
-FetchContent_MakeAvailable(Catch2)
-
 add_executable(synth_tests
+    main.cpp
     test_svf.cpp
     test_pluck.cpp
     test_ring_buffer.cpp
@@ -24,17 +16,10 @@ add_executable(synth_tests
 
 target_include_directories(synth_tests PRIVATE
     ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/tests
 )
 
-target_link_libraries(synth_tests PRIVATE
-    Catch2::Catch2WithMain
-)
-
-target_precompile_headers(synth_tests PRIVATE <catch2/catch_all.hpp>)
-
-include(CTest)
-include(Catch)
-catch_discover_tests(synth_tests)
+add_test(NAME synth_tests COMMAND synth_tests)
 
 add_executable(fft_debug
     test_fft_stability.cpp

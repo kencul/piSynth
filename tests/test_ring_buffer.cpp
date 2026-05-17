@@ -1,4 +1,4 @@
-#include <catch2/catch_test_macros.hpp>
+#include "doctest.h"
 
 #include <atomic>
 #include <thread>
@@ -13,13 +13,13 @@ static NoteEvent make_note(int n) { return {NoteEvent::Type::NoteOn, n, 64}; }
 
 // ── Single-threaded Correctness ──
 
-TEST_CASE("RingBuffer pop on empty returns nullopt", "[ring_buffer]") {
+TEST_CASE("RingBuffer pop on empty returns nullopt") {
 	RingBuffer<NoteEvent, 8> rb;
 	CHECK_FALSE(rb.pop().has_value());
 	CHECK(rb.empty());
 }
 
-TEST_CASE("RingBuffer preserves FIFO order", "[ring_buffer]") {
+TEST_CASE("RingBuffer preserves FIFO order") {
 	RingBuffer<NoteEvent, 8> rb;
 
 	for (int i = 0; i < 5; ++i) REQUIRE(rb.push(make_note(i)));
@@ -33,7 +33,7 @@ TEST_CASE("RingBuffer preserves FIFO order", "[ring_buffer]") {
 }
 
 // CAPACITY=8 means 7 usable slots (one slot is sacrificed to distinguish full from empty).
-TEST_CASE("RingBuffer full at CAPACITY-1 items", "[ring_buffer]") {
+TEST_CASE("RingBuffer full at CAPACITY-1 items") {
 	RingBuffer<NoteEvent, 8> rb;
 
 	for (int i = 0; i < 7; ++i) REQUIRE(rb.push(make_note(i)));
@@ -42,7 +42,7 @@ TEST_CASE("RingBuffer full at CAPACITY-1 items", "[ring_buffer]") {
 	CHECK_FALSE(rb.push(make_note(99)));
 }
 
-TEST_CASE("RingBuffer can be refilled after draining", "[ring_buffer]") {
+TEST_CASE("RingBuffer can be refilled after draining") {
 	RingBuffer<NoteEvent, 8> rb;
 
 	for (int i = 0; i < 7; ++i) rb.push(make_note(i));
@@ -64,8 +64,7 @@ TEST_CASE("RingBuffer can be refilled after draining", "[ring_buffer]") {
 // This validates the acquire/release ordering that the class relies on to be safe under ARM's weak
 // memory model. If the atomic operations were wrong, a concurrent run would occasionally produce
 // stale reads or lost writes.
-TEST_CASE("RingBuffer SPSC: all events arrive in order under concurrent access",
-          "[ring_buffer][concurrent]") {
+TEST_CASE("RingBuffer SPSC: all events arrive in order under concurrent access") {
 	constexpr int N      = 10'000;
 	constexpr size_t CAP = 64;
 

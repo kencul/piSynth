@@ -1,5 +1,4 @@
-#include <catch2/catch_approx.hpp>
-#include <catch2/catch_test_macros.hpp>
+#include "doctest.h"
 #include <cmath>
 #include <numbers>
 #include <vector>
@@ -7,7 +6,6 @@
 #include "config.hpp"
 #include "osc/osc.hpp"
 
-using Catch::Approx;
 
 // Measures the fundamental frequency of a triggered Pluck via normalized
 // autocorrelation with parabolic interpolation for sub-sample accuracy.
@@ -64,7 +62,7 @@ static float hz_to_cents(float measured_hz, float target_hz) {
 	return 1200.0f * std::log2(measured_hz / target_hz);
 }
 
-TEST_CASE("Pluck frequency accuracy is within ±2 cents across MIDI range", "[pluck][tuning]") {
+TEST_CASE("Pluck frequency accuracy is within ±2 cents across MIDI range") {
 	struct Note {
 		const char *name;
 		float hz;
@@ -140,8 +138,7 @@ static float measure_decay_db_per_sec(float freq_hz, float requested_decay) {
 // The DC blocker is y[n] = x[n] − x[n-1] + 0.9999·y[n-1] with τ = 10000 samples. The triangle
 // initialization produces an early mean of ~23% of amplitude; after 2.2τ (22050 samples) the
 // residual is below 2%: a greater than 10x reduction.
-TEST_CASE("Pluck DC blocker reduces initial DC offset by at least 10x after settling",
-          "[pluck][dc]") {
+TEST_CASE("Pluck DC blocker reduces initial DC offset by at least 10x after settling") {
 	Config::SAMPLE_RATE = 44100;
 
 	const int EARLY_N = 1024;
@@ -222,8 +219,7 @@ static float harmonic_ratio_db(float fundamental_hz, float harmonic_hz, float pl
 // At pickup_pos=0.40, n=2: |H(2)|/|H(1)| = |cos(1.2π)|/|cos(0.6π)| ≈ 0.81/0.31 ≈ 2.6 →
 // the 2nd harmonic actually exceeds the fundamental in the output.
 // Measured contrast between null (≈ −42 dB) and boost (+1.9 dB) is ≈ 44 dB.
-TEST_CASE("Pickup position comb filter nulls or boosts harmonics as predicted by theory",
-          "[pluck][spectral]") {
+TEST_CASE("Pickup position comb filter nulls or boosts harmonics as predicted by theory") {
 	const float f0      = 220.0f;
 	const float harm_hz = 2.0f * f0;
 	// Triangle Fourier: amplitude_n ∝ sin(n·π·p)/n². The 2nd/1st ratio = |cos(π·p)|/2.
@@ -256,7 +252,7 @@ TEST_CASE("Pickup position comb filter nulls or boosts harmonics as predicted by
 // decays at high frequencies; A3 (220 Hz) stays clear of it across all three decay rates tested
 // here. Tolerance is ±10%: Goertzel measurement at the exact fundamental bin eliminates harmonic
 // bias entirely; residual error comes from fractional-delay interpolation in the waveguide.
-TEST_CASE("Pluck decay rate matches requested dB/sec", "[pluck][decay]") {
+TEST_CASE("Pluck decay rate matches requested dB/sec") {
 	struct Case {
 		float freq_hz;
 		float decay_db_per_sec;
@@ -272,6 +268,6 @@ TEST_CASE("Pluck decay rate matches requested dB/sec", "[pluck][decay]") {
 		const float measured_rate = measure_decay_db_per_sec(freq, decay);
 		INFO("freq=" << freq << " Hz,  requested=" << decay
 		             << " dB/sec,  measured=" << -measured_rate << " dB/sec");
-		CHECK(std::abs(measured_rate) == Approx(decay).margin(decay * 0.10f));
+		CHECK(std::abs(std::abs(measured_rate) - decay) <= decay * 0.10f);
 	}
 }
