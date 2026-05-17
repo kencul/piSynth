@@ -1,17 +1,15 @@
-#include <catch2/catch_approx.hpp>
-#include <catch2/catch_test_macros.hpp>
+#include "doctest.h"
 #include <cmath>
 
 #include "common/smoothed_value.hpp"
 #include "config.hpp"
 
-using Catch::Approx;
 
 // ── Reset ──
 
 // reset() writes value directly into filter state and sets target, so the very first next_sample()
 // returns that value exactly — no smoothing applied.
-TEST_CASE("SmoothedValue reset() snaps to value immediately", "[smoothed_value]") {
+TEST_CASE("SmoothedValue reset() snaps to value immediately") {
 	Config::SAMPLE_RATE = 44100;
 	SmoothedValue sv(20.0f);
 	sv.reset(0.75f);
@@ -20,7 +18,7 @@ TEST_CASE("SmoothedValue reset() snaps to value immediately", "[smoothed_value]"
 
 // With state = target = 0, the filter output is identically 0.
 // Snap threshold fires on the first call and holds there — no asymptotic drift.
-TEST_CASE("SmoothedValue reset() to zero stays at zero with no target change", "[smoothed_value]") {
+TEST_CASE("SmoothedValue reset() to zero stays at zero with no target change") {
 	Config::SAMPLE_RATE = 44100;
 	SmoothedValue sv(20.0f);
 	sv.reset(0.0f);
@@ -32,8 +30,7 @@ TEST_CASE("SmoothedValue reset() to zero stays at zero with no target change", "
 // The one-pole filter: state[n] = (1 − c)·target + c·state[n−1], c = e^(−1/N),
 // N = time_ms · 0.001 · SR.  Starting from 0 → 1, after exactly N samples:
 // state[N] = 1 − c^N = 1 − e^(−1) ≈ 0.6321.
-TEST_CASE("SmoothedValue reaches 1−e⁻¹ ≈ 63% of target after one time constant",
-          "[smoothed_value]") {
+TEST_CASE("SmoothedValue reaches 1−e⁻¹ ≈ 63% of target after one time constant") {
 	Config::SAMPLE_RATE = 44100;
 
 	const float time_ms = 50.0f;
@@ -48,7 +45,7 @@ TEST_CASE("SmoothedValue reaches 1−e⁻¹ ≈ 63% of target after one time con
 
 	const float expected = 1.0f - std::exp(-1.0f); // ≈ 0.6321
 	INFO("after " << N << " samples: out=" << out << "  expected≈" << expected);
-	CHECK(out == Approx(expected).margin(0.001f));
+	CHECK(std::abs(out - expected) <= 0.001f);
 }
 
 // ── Snap Threshold ──
@@ -56,7 +53,7 @@ TEST_CASE("SmoothedValue reaches 1−e⁻¹ ≈ 63% of target after one time con
 // Without a snap threshold the one-pole tail is infinite. The snap fires when |state − target| <
 // snap_threshold (default 1e−4), which happens after ~9τ. After 10τ the output must equal the
 // target exactly, not just approximately.
-TEST_CASE("SmoothedValue snaps to target exactly and stops drifting", "[smoothed_value]") {
+TEST_CASE("SmoothedValue snaps to target exactly and stops drifting") {
 	Config::SAMPLE_RATE = 44100;
 
 	SmoothedValue sv(20.0f);
@@ -76,7 +73,7 @@ TEST_CASE("SmoothedValue snaps to target exactly and stops drifting", "[smoothed
 
 // set_target() mid-smoothing redirects the filter toward the new value. After enough time the snap
 // fires and output must equal the second target exactly.
-TEST_CASE("SmoothedValue re-targeting mid-smooth converges to new target", "[smoothed_value]") {
+TEST_CASE("SmoothedValue re-targeting mid-smooth converges to new target") {
 	Config::SAMPLE_RATE = 44100;
 
 	SmoothedValue sv(20.0f);

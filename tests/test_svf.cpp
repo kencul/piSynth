@@ -1,12 +1,10 @@
-#include <catch2/catch_approx.hpp>
-#include <catch2/catch_test_macros.hpp>
+#include "doctest.h"
 #include <cmath>
 #include <numbers>
 
 #include "config.hpp"
 #include "effects/svf.hpp"
 
-using Catch::Approx;
 
 // Drives the SVF with a pure sine at test_freq_hz and returns linear gain (RMS_out / RMS_in). Uses
 // a small amplitude (0.1) to stay in the linear regime and avoid tanh saturation in the resonance
@@ -49,28 +47,28 @@ static float to_db(float linear_gain) { return 20.0f * std::log10(linear_gain); 
 // bilinear pre-warping guarantees the correct cutoff frequency but not the exact gain at that
 // frequency; error is largest at low frequencies and near Nyquist where the integrator deviates
 // most from continuous-time behavior. Measured worst case is ~0.08 dB (at 200 Hz).
-TEST_CASE("SVF gain at cutoff is Q-dependent (Q=0.5 → -6 dB)", "[svf]") {
+TEST_CASE("SVF gain at cutoff is Q-dependent (Q=0.5 → -6 dB)") {
 	for (float cutoff : {200.f, 500.f, 1000.f, 4000.f, 18000.f}) {
 		float gain_db = to_db(measure_gain(cutoff, 0.0f, cutoff));
 		INFO("cutoff=" << cutoff << " Hz,  gain at cutoff=" << gain_db << " dB");
-		CHECK(gain_db == Approx(-6.02f).margin(0.3f));
+		CHECK(std::abs(gain_db - (-6.02f)) <= 0.3f);
 	}
 }
 
 // Butterworth Q = 1/√2 requires k = √2, so resonance = 1 - 1/√2 ≈ 0.293.
 // At this setting the -3 dB point lands exactly at the cutoff frequency.
 // Same ZDF trapezoidal deviation applies; measured worst case is ~0.22 dB (at 200 Hz).
-TEST_CASE("SVF -3 dB point is at cutoff with Butterworth resonance setting", "[svf]") {
+TEST_CASE("SVF -3 dB point is at cutoff with Butterworth resonance setting") {
 	const float butterworth_resonance = 1.0f - 1.0f / std::numbers::sqrt2_v<float>; // ≈ 0.293
 	for (float cutoff : {200.f, 500.f, 1000.f, 4000.f, 18000.f}) {
 		float gain_db = to_db(measure_gain(cutoff, butterworth_resonance, cutoff));
 		INFO("cutoff=" << cutoff << " Hz,  gain at cutoff=" << gain_db << " dB");
-		CHECK(gain_db == Approx(-3.01f).margin(0.3f));
+		CHECK(std::abs(gain_db - (-3.01f)) <= 0.3f);
 	}
 }
 
 // Well below cutoff the LP should be essentially flat (< 1 dB down).
-TEST_CASE("SVF passband is flat below cutoff", "[svf]") {
+TEST_CASE("SVF passband is flat below cutoff") {
 	for (float cutoff : {500.f, 1000.f, 4000.f}) {
 		float gain_db = to_db(measure_gain(cutoff, 0.0f, cutoff * 0.1f));
 		INFO("cutoff=" << cutoff << " Hz,  passband gain=" << gain_db << " dB");
@@ -80,7 +78,7 @@ TEST_CASE("SVF passband is flat below cutoff", "[svf]") {
 
 // 2nd-order rolloff is -40 dB/decade; one decade above cutoff should be at least -36 dB
 // (conservative to allow for filter implementation variance).
-TEST_CASE("SVF stopband attenuates above cutoff", "[svf]") {
+TEST_CASE("SVF stopband attenuates above cutoff") {
 	for (float cutoff : {200.f, 500.f, 1000.f}) {
 		float gain_db = to_db(measure_gain(cutoff, 0.0f, cutoff * 10.0f));
 		INFO("cutoff=" << cutoff << " Hz,  stopband gain at 10x=" << gain_db << " dB");
@@ -89,7 +87,7 @@ TEST_CASE("SVF stopband attenuates above cutoff", "[svf]") {
 }
 
 // High resonance should push the gain at cutoff above the Butterworth baseline.
-TEST_CASE("SVF resonance creates a gain peak at cutoff", "[svf]") {
+TEST_CASE("SVF resonance creates a gain peak at cutoff") {
 	const float cutoff = 1000.0f;
 	float gain_flat_db = to_db(measure_gain(cutoff, 0.0f, cutoff));
 	float gain_res_db  = to_db(measure_gain(cutoff, 0.9f, cutoff));
