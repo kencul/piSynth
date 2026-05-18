@@ -27,7 +27,7 @@
 
 ### Latency
 
-**Measured round-trip latency: ~8–11 ms** (MIDI note-on → audio output, Raspberry Pi 5, 48 kHz / 64-sample period). The 5.33 ms output buffer floor is exact and deterministic; the remaining ~3–6 ms is USB transfer and scheduler overhead.
+**Measured round-trip latency: ~8–11 ms** (MIDI note-on → audio output, Raspberry Pi 5, 48 kHz / 64-sample period). The 5.33 ms output buffer floor (4 × 1.33 ms periods at 48 kHz / 64 samples) is exact and deterministic; the remaining ~3–6 ms is USB transfer and scheduler overhead.
 
 [Measurement methodology, full 20-run dataset, and statistical analysis →](scripts/README.md#benchmark_latencysh)
 
