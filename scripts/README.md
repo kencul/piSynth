@@ -154,16 +154,16 @@ Measured on Raspberry Pi 5, 48 kHz / 64-sample period, 8 simultaneous voices, br
 
 | Configuration   | Mean  | Median | Std Dev | Delta vs idle |
 |-----------------|-------|--------|---------|---------------|
-| Idle (baseline) | 16.2% | 16.0%  | ±0.4%   | —             |
-| Dry             | 23.8% | 24.0%  | ±0.4%   | +7.6%         |
-| Reverb          | 23.8% | 24.0%  | ±0.6%   | +7.6%         |
-| Chorus          | 23.8% | 24.0%  | ±0.5%   | +7.6%         |
-| Delay           | 23.8% | 24.0%  | ±0.5%   | +7.6%         |
-| All effects     | 23.8% | 24.0%  | ±0.5%   | +7.6%         |
+| Idle (baseline) | 16.2% | 16.0%  | ±0.6%   | —             |
+| Dry             | 23.9% | 24.0%  | ±0.5%   | +7.7%         |
+| Reverb          | 23.9% | 24.0%  | ±0.4%   | +7.7%         |
+| Chorus          | 23.9% | 24.0%  | ±0.4%   | +7.7%         |
+| Delay           | 24.3% | 24.0%  | ±0.5%   | +8.1%         |
+| All effects     | 23.9% | 24.0%  | ±0.6%   | +7.7%         |
 
-The idle baseline (16.2%) is the cost of the audio thread, WebSocket server, and FFT pipeline with no voices active. The delta (+7.6%) is the pure DSP cost of 8 simultaneous Karplus-Strong voices.
+The idle baseline (16.2%) is the cost of the audio thread, WebSocket server, and FFT pipeline with no voices active. The delta (+7.7%) is the pure DSP cost of 8 simultaneous Karplus-Strong voices.
 
-All effect configurations produce identical CPU usage. The Karplus-Strong waveguide computation dominates: reverb, chorus, and delay each add no measurable incremental cost at the per-period level, and all three combined costs the same as any one alone. Effect overhead exists but is sub-1% per effect — below `pidstat`'s resolution floor — so it cannot be distinguished from the dry baseline with this tool. The effects bus is not the bottleneck.
+All effect configurations produce identical CPU usage. The Karplus-Strong waveguide computation dominates: reverb, chorus, and delay each add no measurable incremental cost at the per-period level, and all three combined costs the same as any one alone. Effect overhead exists but is sub-1% per effect (below `pidstat`'s resolution floor) so it cannot be distinguished from the dry baseline with this tool. The effects bus is not the bottleneck.
 
 ### Measurement limitations
 
