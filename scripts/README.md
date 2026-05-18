@@ -47,7 +47,7 @@ arecord -l  # find the card number
 ./scripts/benchmark_latency.sh --capture-device plughw:2,0
 ```
 
-Run 5 times and average. Each run has a timing uncertainty described below.
+Run 20 times and average. Each run has a timing uncertainty described below.
 
 ### How it works
 
