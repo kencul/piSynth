@@ -109,3 +109,70 @@ All standard on Pi OS — no pip packages required:
 - `alsa-utils`: provides `arecord` and `amidi`
 - `snd-virmidi`: kernel module, built into the kernel
 - `python3`: stdlib `wave` and `struct` only
+
+---
+
+## `benchmark_cpu.sh`
+
+Measures CPU utilization under a fully saturated 8-voice load, with each effect in isolation and all effects combined.
+
+### Setup
+
+1. Start the synth.
+2. Open the browser UI in a browser tab. This keeps the WebSocket and FFT pipeline active during measurement, matching real-world use.
+3. Load VirMIDI if not already loaded:
+   ```bash
+   sudo modprobe snd-virmidi
+   ```
+4. Install `sysstat` if not present:
+   ```bash
+   sudo apt install sysstat
+   ```
+
+### Run
+
+```bash
+./scripts/benchmark_cpu.sh
+```
+
+### How it works
+
+Six passes run in sequence. Each pass:
+
+1. Sends MIDI CCs to configure the target effect preset at maximum settings (all other effect mixes zeroed).
+2. Fires 8 simultaneous note-ons on distinct pitches to saturate all voices.
+3. Retriggers those note-ons every 5 seconds — Karplus-Strong waveguides decay naturally, and retrigger prevents voices from going silent before the measurement window ends.
+4. Runs `pidstat -p <synth_pid> 1 30`, sampling the synth process every second for 30 seconds.
+5. Discards the first 2 seconds (voice ramp-up and parameter smoother transients), then computes mean, median, and std dev over the remaining 28 samples.
+6. Sends note-offs and moves to the next pass.
+
+All effect parameters are set to maximum (CC value 127) for every pass. CPU is measured per-process rather than system-wide, so scheduler noise on other cores does not dilute the result.
+
+### Findings
+
+Measured on Raspberry Pi 5, 48 kHz / 64-sample period, 8 simultaneous voices, browser UI open (WebSocket + FFT active). Each pass runs for 30 s; the first 2 s are discarded to exclude voice ramp-up and parameter smoother transients. CPU is reported as `%CPU` from `pidstat` for the synth process — per-process utilization across all cores, where 100% = one full core.
+
+| Configuration   | Mean  | Median | Std Dev | Delta vs idle |
+|-----------------|-------|--------|---------|---------------|
+| Idle (baseline) | 16.2% | 16.0%  | ±0.6%   | —             |
+| Dry             | 23.9% | 24.0%  | ±0.5%   | +7.7%         |
+| Reverb          | 23.9% | 24.0%  | ±0.4%   | +7.7%         |
+| Chorus          | 23.9% | 24.0%  | ±0.4%   | +7.7%         |
+| Delay           | 24.3% | 24.0%  | ±0.5%   | +8.1%         |
+| All effects     | 23.9% | 24.0%  | ±0.6%   | +7.7%         |
+
+The idle baseline (16.2%) is the cost of the audio thread, WebSocket server, and FFT pipeline with no voices active. The delta (+7.7%) is the pure DSP cost of 8 simultaneous Karplus-Strong voices.
+
+All effect configurations produce identical CPU usage. The Karplus-Strong waveguide computation dominates: reverb, chorus, and delay each add no measurable incremental cost at the per-period level, and all three combined costs the same as any one alone. Effect overhead exists but is sub-1% per effect (below `pidstat`'s resolution floor) so it cannot be distinguished from the dry baseline with this tool. The effects bus is not the bottleneck.
+
+### Measurement limitations
+
+`pidstat` reports CPU in 1% increments. Effect overhead exists but is sub-1% per effect, which falls below this resolution floor and cannot be distinguished from the dry baseline with this tool. Isolating per-effect cost would require cycle-accurate measurement via `perf stat`.
+
+At ~24% of one core out of four, the Pi 5 has substantial headroom at maximum polyphony and full effects.
+
+### Dependencies
+
+- `alsa-utils`: provides `amidi`
+- `snd-virmidi`: kernel module, built into the kernel
+- `sysstat`: provides `pidstat`
