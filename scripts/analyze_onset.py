@@ -53,7 +53,8 @@ def main() -> None:
     all_samples = struct.unpack(f"<{n_frames * n_channels}h", raw)
     samples = [all_samples[i * n_channels] / 32768.0 for i in range(n_frames)]
 
-    # Measure noise floor from 0.5–0.7s into the recording (after ALSA init, before note fires)
+    # Measure noise floor from 0.5–0.7s into the recording (after ALSA init, before note fires).
+    # Window start must be >= ALSA_INIT_S in benchmark_latency.sh (currently 0.5s).
     nf_start = int(0.5 * sample_rate)
     nf_end = int(0.7 * sample_rate)
     noise_floor = rms(samples[nf_start:nf_end])
@@ -78,7 +79,7 @@ def main() -> None:
     print(f"Pre-trigger : {pre_trigger_s:.4f}s")
     print()
     print(f"Measured latency     : {latency_ms:.1f} ms")
-    print(f"  (±10-15ms from ALSA capture startup; run 5x and average)")
+    print(f"  (±10-15ms from ALSA capture startup; run 20x and average)")
 
     buffer_size = PERIOD_SIZE * BUFFER_PERIODS
     theo_ms = buffer_size / sample_rate * 1000.0

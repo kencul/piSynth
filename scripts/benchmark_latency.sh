@@ -12,7 +12,7 @@
 # Usage:
 #   ./scripts/benchmark_latency.sh [--capture-device plughw:X,0]
 #
-# Run 5 times and average. Each run has ~10-15ms timing uncertainty from
+# Run 20 times and average. Each run has ~10-15ms timing uncertainty from
 # ALSA capture initialization; see scripts/README.md for details.
 
 set -euo pipefail
@@ -96,5 +96,6 @@ ARECORD_PID=""
 echo " done."
 echo ""
 
-PRE_TRIGGER_ACTUAL=$(awk "BEGIN { printf \"%.6f\", ($T1_NS - $T0_NS) / 1e9 }")
+DIFF_NS=$((T1_NS - T0_NS))
+PRE_TRIGGER_ACTUAL=$(awk "BEGIN { printf \"%.6f\", $DIFF_NS / 1e9 }")
 python3 "$SCRIPT_DIR/analyze_onset.py" "$TMPWAV" "$SAMPLE_RATE" "$PRE_TRIGGER_ACTUAL"
