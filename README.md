@@ -1,8 +1,10 @@
 # PiSynth
 
-[![Tests](https://github.com/kencul/piSynth/actions/workflows/tests.yml/badge.svg)](https://github.com/kencul/piSynth/actions/workflows/tests.yml)
-
 **PiSynth** is a polyphonic plucked-string synthesizer written in C++20 for the Raspberry Pi. It is a working instrument and a documented engineering project, where each chapter of the repository is a distinct technical milestone, starting from a raw ALSA sine wave and building up to a full synthesizer with a real-time browser interface.
+
+![PiSynth demo](assets/demo.gif)
+
+[![Tests](https://github.com/kencul/piSynth/actions/workflows/tests.yml/badge.svg)](https://github.com/kencul/piSynth/actions/workflows/tests.yml)
 
 ---
 
