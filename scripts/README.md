@@ -1,6 +1,6 @@
 # Scripts
 
-## benchmark_latency.sh
+## `benchmark_latency.sh`
 
 Measures round-trip MIDI-to-audio latency: the time from a programmatic MIDI note-on to audio appearing at the captured output.
 
@@ -8,14 +8,14 @@ Measures round-trip MIDI-to-audio latency: the time from a programmatic MIDI not
 
 ```
 Raspberry Pi
-  └── USB → USB-C DAC → 3.5mm headphone out
-                              │
-                         3.5mm cable
-                              │
-                        3.5mm line in → USB interface → USB → Raspberry Pi
+  ├── USB → USB ground isolator → USB-C DAC → 3.5mm headphone out
+  │                                                    │
+  │                                               3.5mm cable
+  │                                                    │
+  └── USB ← USB interface ← 3.5mm line in ←────────────┘
 ```
 
-The synth outputs to the USB-C DAC. The signal loops back into the USB interface line input, where `arecord` captures it. A USB ground isolator on the DAC prevents a ground loop from both devices sharing the same USB bus.
+The synth outputs to the USB-C DAC. The signal loops back into the USB interface line input, where `arecord` captures it. The USB ground isolator on the DAC breaks the ground loop that would otherwise form with both devices on the same USB bus. It is electrically transparent to the USB protocol and adds no measurable latency.
 
 ### Synth settings
 
@@ -106,6 +106,6 @@ The dominant source of uncertainty is ALSA capture initialization: the gap betwe
 
 All standard on Pi OS — no pip packages required:
 
-- `alsa-utils` — provides `arecord` and `amidi`
-- `snd-virmidi` — kernel module, built into the kernel
-- `python3` — stdlib `wave` and `struct` only
+- `alsa-utils`: provides `arecord` and `amidi`
+- `snd-virmidi`: kernel module, built into the kernel
+- `python3`: stdlib `wave` and `struct` only
