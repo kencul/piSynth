@@ -9,7 +9,7 @@ public:
 	void set_rate(float hz);
 	void set_shape(Shape shape);
 	void set_phase_offset(float offset);
-	void reset();    // resets phase to 0
+	void reset();
 	float process(); // returns -1.0 to 1.0
 
 private:

@@ -10,9 +10,9 @@ public:
 	void set_attack(float ms);
 	void set_release(float ms);
 
-	void trigger(); // starts attack
-	void release(); // starts fade to 0
-	void kill();    // fast ramp to 0 for voice stealing
+	void trigger();
+	void release();
+	void kill(); // fast ramp to 0 for voice stealing
 
 	float process();
 	bool is_idle() const;

@@ -33,7 +33,8 @@ float SVF::process(float input) {
 	float v1 = a1 * s1 + a2 * v3;
 	float v2 = s2 + a2 * s1 + a3 * v3;
 
-	// tanh on resonance state only — warms feedback path without coloring output
+	// tanh on resonance state only, warms feedback path without coloring output
+	// 2*v1 - s1 is the trapezoidal integrator state update from the ZDF bilinear transform
 	s1 = fast_tanh(2.0f * v1 - s1);
 	s2 = 2.0f * v2 - s2;
 

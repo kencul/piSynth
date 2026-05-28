@@ -9,11 +9,11 @@ template <typename T, size_t CAPACITY> class RingBuffer {
 public:
 	// Returns false if the buffer is full and the event was dropped
 	bool push(const T &item) {
+		// relaxed load is safe: the acquire on read_pos below provides the ordering on ARM
 		size_t write = write_pos.load(std::memory_order_relaxed);
 		size_t next  = (write + 1) % CAPACITY;
 
-		// buffer full
-		if (next == read_pos.load(std::memory_order_acquire)) return false;
+		if (next == read_pos.load(std::memory_order_acquire)) return false; // buffer full
 
 		data[write] = item;
 
@@ -26,7 +26,7 @@ public:
 	std::optional<T> pop() {
 		size_t read = read_pos.load(std::memory_order_relaxed);
 
-		// empty — read head has caught up to write head
+		// empty: read head has caught up to write head
 		if (read == write_pos.load(std::memory_order_acquire)) return std::nullopt;
 
 		T item = data[read];

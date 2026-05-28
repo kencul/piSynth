@@ -68,7 +68,7 @@ void WebServer::run(int port) {
 	fft.init();
 	fft_timer = us_create_timer(reinterpret_cast<us_loop_t *>(loop), 0, sizeof(WebServer *));
 
-	// store `this` in the timer's ext data
+	// store `this` in the timer's ext data so the callback can reach the instance
 	*(WebServer **)us_timer_ext(fft_timer) = this;
 
 	us_timer_set(
@@ -89,7 +89,7 @@ void WebServer::run(int port) {
 		         res->cork([this, res] {
 			         res->writeHeader("Content-Type", "text/html");
 			         res->writeHeader("Cache-Control",
-			                          "no-store"); // never cache — always fetch fresh
+			                          "no-store"); // never cache, always fetch fresh
 			         res->end(html);
 		         });
 	         })

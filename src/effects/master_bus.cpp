@@ -39,7 +39,7 @@ void MasterBus::process(std::span<float> mix_l, std::span<float> mix_r) {
 
 	for (int i = 0; i < static_cast<int>(mix_l.size()); ++i) {
 		float gain = gain_smoother.next_sample();
-		// soft clip via tanh, then restore level — acts as a bus limiter
+		// soft clip via tanh, then restore level, acts as a bus limiter
 		mix_l[i] = std::tanh(mix_l[i] * Config::SATURATION_DRIVE) / Config::SATURATION_DRIVE;
 		mix_r[i] = std::tanh(mix_r[i] * Config::SATURATION_DRIVE) / Config::SATURATION_DRIVE;
 
