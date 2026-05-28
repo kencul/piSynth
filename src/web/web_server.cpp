@@ -89,7 +89,7 @@ void WebServer::run(int port) {
 		         res->cork([this, res] {
 			         res->writeHeader("Content-Type", "text/html");
 			         res->writeHeader("Cache-Control",
-			                          "no-store"); // never cache — always fetch fresh
+			                          "no-store"); // never cache, always fetch fresh
 			         res->end(html);
 		         });
 	         })

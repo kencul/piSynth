@@ -53,9 +53,9 @@ bool AudioEngine::open() {
 
 				std::cout << "AudioEngine: Found USB Playback Device: " << long_name << "\n";
 
-				// Probe native rate BEFORE opening plughw — hw:X,0 is exclusively
-				// locked once plughw is open, so the probe would fail and fall back
-				// to 48000, re-introducing the SRC bitcrushing issue.
+				// Probe native rate BEFORE opening plughw: hw:X,0 is exclusively locked once plughw
+				// is open, so the probe would fail and fall back to 48000, re-introducing the SRC
+				// bitcrushing issue.
 				device_card = card;
 				probed_rate = probe_native_rate();
 
@@ -94,16 +94,14 @@ bool AudioEngine::open() {
 unsigned int AudioEngine::probe_native_rate() {
 	snd_pcm_t *hw;
 	std::string path = "hw:" + std::to_string(device_card) + ",0";
-	if (snd_pcm_open(&hw, path.c_str(), SND_PCM_STREAM_PLAYBACK, 0) < 0)
-		return 48000;
+	if (snd_pcm_open(&hw, path.c_str(), SND_PCM_STREAM_PLAYBACK, 0) < 0) return 48000;
 
 	snd_pcm_hw_params_t *p;
 	snd_pcm_hw_params_alloca(&p);
 	snd_pcm_hw_params_any(hw, p);
 
 	unsigned int rate = 48000;
-	if (snd_pcm_hw_params_test_rate(hw, p, 48000, 0) != 0)
-		rate = 44100;
+	if (snd_pcm_hw_params_test_rate(hw, p, 48000, 0) != 0) rate = 44100;
 
 	snd_pcm_close(hw);
 	std::cout << "AudioEngine: probed native rate=" << rate << "\n";
