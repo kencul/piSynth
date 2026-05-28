@@ -47,6 +47,37 @@ The +7.6% delta is the cost of 8 simultaneous Karplus-Strong voices. Individual 
 
 ---
 
+## プログラムを作成する上で苦労した箇所 (Challenges)
+
+**Pitch-uniform decay in the Karplus-Strong model**
+*(Implementation: [`src/osc/osc.cpp:10–15`](src/osc/osc.cpp#L10-L15))*
+
+The averager in the feedback loop, `(x[n] + x[n-1])`, has a gain of `2 * cos(π * f0 / fs)` at frequency f0. Without compensation, this causes high-pitched strings to decay faster than low ones, since the filter attenuates more at higher frequencies. To enforce a consistent T60 decay time across all pitches, the feedback gain is derived as:
+
+```
+G = 10^(-decay_db_per_s / (20 * f0))
+A = 2 * cos(π * f0 / fs)               // gain of (x[n] + x[n-1]) at f0
+g = min(G / A, 0.4995)                 // stability boundary: G/A < 0.5
+```
+
+The cap at 0.4995 is the stability boundary of this filter, not an arbitrary constant. If `g` reaches 0.5, net loop gain at certain frequencies reaches 1.0, causing those components to stop decaying and sustain indefinitely, producing a persistent tone or DC offset rather than a natural decay. The cap prevents this at all pitches.
+
+**Acquire/release ordering on the SPSC ring buffer**
+*(Implementation: [`src/voice/ring_buffer.hpp:18–21`](src/voice/ring_buffer.hpp#L18-L21) | Tests: [`tests/test_ring_buffer.cpp`](tests/test_ring_buffer.cpp))*
+
+ARM's weak memory model provides no implicit ordering guarantees between independent memory accesses. In the lock-free ring buffer, the MIDI thread writes a note event into the data array and then advances the atomic write pointer. On ARM, the processor is free to reorder these operations, publishing the new pointer position before the data is written. The audio thread would then read the write pointer, observe a new slot, and load uninitialized data.
+
+Marking the write pointer advance as `memory_order_release` guarantees all preceding writes are visible before the pointer update, and marking the read pointer load as `memory_order_acquire` ensures all writes preceding the paired release are visible before the data array is accessed. This guarantee is verified by a concurrent stress test in `tests/test_ring_buffer.cpp` that validates FIFO ordering and SPSC correctness under simultaneous producer and consumer threads.
+
+**Zipper noise from a derived chorus parameter**
+*(Implementation: [`src/effects/chorus.cpp:21–22`](src/effects/chorus.cpp#L21-L22))*
+
+Smoothing the rate and depth CC inputs individually eliminated most artifacts, but residual zipper noise remained in the chorus. The root cause was the derived value `depth_ms = COUPLING / rate`: even when rate changes smoothly, dividing by it produces a nonlinear output that jumps discontinuously per sample, particularly at low rates. Smoothing the inputs left this derived value unsmoothed on the hot path.
+
+Smoothing `depth_ms` directly at per-sample resolution eliminates this. A minimum rate floor of 1 Hz was added alongside this, since sub-1 Hz values cause extreme `depth_ms` swings that exceed the smoothing filter's ability to suppress them. Chorus sweeps became artifact-free across the full rate range.
+
+---
+
 ## Development Journey
 
 The repository is organized as a series of chapters. Each is a self-contained, buildable program with its own documentation covering the engineering decisions at that stage.
