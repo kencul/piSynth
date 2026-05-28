@@ -21,8 +21,8 @@ jobs:
       - name: Configure
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON
 
-      - name: Build tests
-        run: cmake --build build --target synth_tests
+      - name: Build
+        run: cmake --build build
 
       - name: Run tests
         run: ctest --test-dir build --output-on-failure
