@@ -4,9 +4,9 @@
 
 All original code is in [`/src`](src/). External libraries (uWebSockets, PFFFT) are isolated in [`/deps`](deps/).
 
-![PiSYnth Demo](assets/demo.gif)
+![PiSynth Demo](assets/demo.gif)
 
-[![PiSynth Demo Youtube Video](https://img.youtube.com/vi/EE023OFZND8/maxresdefault.jpg)](https://www.youtube.com/watch?v=EE023OFZND8)
+[▶ Watch Demo Video on YouTube](https://www.youtube.com/watch?v=EE023OFZND8)
 
 [![Tests](https://github.com/kencul/piSynth/actions/workflows/tests.yml/badge.svg)](https://github.com/kencul/piSynth/actions/workflows/tests.yml)
 
