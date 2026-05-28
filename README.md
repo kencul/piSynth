@@ -23,6 +23,20 @@
 
 ---
 
+## Architecture
+
+Three threads run concurrently, each with a distinct real-time contract. The audio thread never blocks: note events arrive via a lock-free SPSC ring buffer, and all parameters are `atomic<float>` values written by the MIDI or web thread and read each period without synchronization overhead. Callbacks from the audio thread to the web layer use `loop->defer()`, keeping WebSocket logic off the real-time path entirely.
+
+### Thread topology and data flow
+
+![Thread topology diagram](assets/PiSynth.webp)
+
+### Audio signal chain
+
+![Audio signal chain diagram](assets/PiSynthAudio.webp)
+
+---
+
 ## Performance
 
 ### Latency
@@ -47,7 +61,7 @@ The +7.6% delta is the cost of 8 simultaneous Karplus-Strong voices. Individual 
 
 ---
 
-## プログラムを作成する上で苦労した箇所 (Challenges)
+## Challenges
 
 **Pitch-uniform decay in the Karplus-Strong model**
 *(Implementation: [`src/osc/osc.cpp:10–15`](src/osc/osc.cpp#L10-L15))*
