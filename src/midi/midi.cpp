@@ -28,7 +28,6 @@ bool MidiReader::open(std::initializer_list<const char *> device_names) {
 		return false;
 	}
 
-	// Subscribe to system announcements
 	snd_seq_connect_from(seq, in_port, SND_SEQ_CLIENT_SYSTEM, SND_SEQ_PORT_SYSTEM_ANNOUNCE);
 
 	connect_all_inputs();
@@ -81,19 +80,14 @@ void MidiReader::handle_event(snd_seq_event_t *ev) {
 			if (ev->data.note.velocity > 0) {
 				event_queue.push(
 				    {NoteEvent::Type::NoteOn, ev->data.note.note, ev->data.note.velocity});
-				// std::cout << "Note On  | " << note_name(ev->data.note.note) << " ("
-				//           << (int)ev->data.note.note << ")"
-				//           << " vel=" << (int)ev->data.note.velocity << "\n";
 			} else {
 				// velocity 0 Note On is equivalent to Note Off
 				event_queue.push({NoteEvent::Type::NoteOff, ev->data.note.note, 0});
-				// std::cout << "Note Off | " << note_name(ev->data.note.note) << "\n";
 			}
 			break;
 
 		case SND_SEQ_EVENT_NOTEOFF:
 			event_queue.push({NoteEvent::Type::NoteOff, ev->data.note.note, 0});
-			// std::cout << "Note Off | " << note_name(ev->data.note.note) << "\n";
 			break;
 
 		case SND_SEQ_EVENT_CONTROLLER: {
@@ -103,28 +97,21 @@ void MidiReader::handle_event(snd_seq_event_t *ev) {
 
 			if (auto id = params.cc_to_param(cc)) {
 				auto d = params.descriptor(*id);
-				// std::cout << "CC " << cc << " | " << d.name << " = " << params.get_value(*id) <<
-				// " "
-				//           << d.unit << "\n";
 				if (on_param_change)
 					on_param_change(
 					    *id, params.get_normalized(*id), params.get_value(*id), d.name, d.unit);
-			} else {
-				// std::cout << "CC " << cc << " val=" << val << " (unmapped)\n";
 			}
 			break;
 		}
 
 		case SND_SEQ_EVENT_PORT_START:
-			// A new port available
 			std::cout << "MidiReader: New MIDI port detected. Re-scanning...\n";
 			connect_all_inputs();
 			if (on_port_change) on_port_change();
 			break;
 
 		case SND_SEQ_EVENT_CLIENT_EXIT:
-			// A device was removed.
-			// ALSA kills the connection automatically
+			// ALSA cleans up the subscription automatically
 			std::cout << "MidiReader: Device disconnected.\n";
 			if (on_port_change) on_port_change();
 			break;
@@ -158,14 +145,12 @@ bool MidiReader::connect_all_inputs() {
 		std::string name = snd_seq_client_info_get_name(c_info);
 		if (name == "System" || name == "Midi Through") continue;
 
-		// Look at all ports on this client
 		snd_seq_port_info_set_client(p_info, client_id);
 		snd_seq_port_info_set_port(p_info, -1);
 
 		while (snd_seq_query_next_port(seq, p_info) >= 0) {
 			unsigned int caps = snd_seq_port_info_get_capability(p_info);
 
-			// Check if the port allows "READ" and "SUBS_READ"
 			if ((caps & SND_SEQ_PORT_CAP_READ) && (caps & SND_SEQ_PORT_CAP_SUBS_READ)) {
 				int port_id = snd_seq_port_info_get_port(p_info);
 
@@ -196,12 +181,10 @@ std::string MidiReader::get_connected_names() {
 	snd_seq_query_subscribe_set_client(subs, snd_seq_client_id(seq));
 	snd_seq_query_subscribe_set_port(subs, in_port);
 
-	// Find who is writing to us
 	snd_seq_query_subscribe_set_type(subs, SND_SEQ_QUERY_SUBS_WRITE);
 	snd_seq_query_subscribe_set_index(subs, 0);
 
 	while (snd_seq_query_port_subscribers(seq, subs) >= 0) {
-		// This address represents the SENDER (the MIDI controller)
 		const snd_seq_addr_t *addr = snd_seq_query_subscribe_get_addr(subs);
 
 		snd_seq_client_info_t *c_info;

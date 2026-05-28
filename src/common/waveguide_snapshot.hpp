@@ -8,7 +8,7 @@ struct WaveguideSnapshot {
     std::array<float, POINTS> displacement {};
 
     // Normalized length of the vibrating string: half_delay_len / (MAX_DELAY/2).
-    // Maps to fret position — higher notes produce a smaller value.
+    // Maps to fret position, higher notes produce a smaller value.
     float fret_pos   = 0.0f;
 
     // Normalized pickup position within the vibrating length (0=nut, 1=bridge).

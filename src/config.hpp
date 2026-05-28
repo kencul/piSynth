@@ -5,7 +5,7 @@
 namespace Config {
 // Audio
 inline unsigned int SAMPLE_RATE =
-    44100; // not constecpr because ALSA sample rate is determined at runtime
+    44100; // not constexpr because ALSA sample rate is determined at runtime
 inline constexpr unsigned int PERIOD_SIZE = 64;
 inline constexpr unsigned int BUFFER_SIZE = PERIOD_SIZE * 4;
 inline constexpr unsigned int CHANNELS    = 2;

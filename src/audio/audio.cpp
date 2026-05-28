@@ -25,9 +25,7 @@ bool AudioEngine::open() {
 		if (snd_ctl_card_info(ctl, info) >= 0) {
 			std::string driver = snd_ctl_card_info_get_driver(info);
 
-			// Check for USB-Audio driver
 			if (driver.find("USB-Audio") != std::string::npos) {
-				// Query the card for PCM playback devices
 				int dev           = -1;
 				bool has_playback = false;
 				while (snd_ctl_pcm_next_device(ctl, &dev) == 0 && dev >= 0) {
@@ -129,15 +127,15 @@ bool AudioEngine::configure_device() {
 	}
 	this->sample_rate = rate;
 
-	// Check for high-bitrate support to decide on float vs dithered int16
+	// check for high-bitrate support to decide on float vs dithered int16
 	if (snd_pcm_hw_params_test_format(handle, hw_params, SND_PCM_FORMAT_S32_LE) == 0
 	    || snd_pcm_hw_params_test_format(handle, hw_params, SND_PCM_FORMAT_S24_LE) == 0
 	    || snd_pcm_hw_params_test_format(handle, hw_params, SND_PCM_FORMAT_S24_3LE) == 0) {
-		// Hardware is high-res; we will provide floats and let plughw convert
+		// High-res device: pass floats and let plughw convert
 		snd_pcm_hw_params_set_format(handle, hw_params, SND_PCM_FORMAT_FLOAT_LE);
 		use_floats = true;
 	} else {
-		// Fallback to 16-bit; we will dither manually in the loop
+		// 16-bit fallback: manual TPDF dither applied in the render loop
 		snd_pcm_hw_params_set_format(handle, hw_params, SND_PCM_FORMAT_S16_LE);
 		use_floats = false;
 	}
@@ -167,7 +165,6 @@ void AudioEngine::start() {
 	if (on_state_change) on_state_change();
 	thread = std::thread(&AudioEngine::audio_loop, this);
 
-	// elevate above normal scheduler after thread is running
 	sched_param sp {.sched_priority = 80};
 	int err = pthread_setschedparam(thread.native_handle(), SCHED_FIFO, &sp);
 	if (err != 0)
@@ -240,9 +237,7 @@ void AudioEngine::audio_loop() {
 			int16_t *s16_ptr = reinterpret_cast<int16_t *>(buf.data());
 
 			for (int i = 0; i < static_cast<int>(period_size); ++i) {
-				// Apply TPDF dithering and convert to int16
-				// Scale by 1/4 of int16 to get half of LSB with rng with a width of 2 (x2 from RNG,
-				// to get 0.5 from 2, divide by 4)
+				// TPDF: sum of two uniform RNG samples, scaled to ±0.5 LSB
 				float dither_scale = 0.25f / 32767.0f;
 				float l_noise = (distribution(generator) + distribution(generator)) * dither_scale;
 				float r_noise = (distribution(generator) + distribution(generator)) * dither_scale;

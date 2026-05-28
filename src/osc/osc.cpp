@@ -2,14 +2,20 @@
 #include <numbers> // for pi_v
 
 void Pluck::set_frequency(double hz) {
-	frequency      = hz;
+	frequency = hz;
+	// -0.5 compensates for the half-sample delay of the one-pole averaging filter; omitting it
+	// causes flat pitch
 	delay_len      = static_cast<float>(Config::SAMPLE_RATE / hz - 0.5f);
 	half_delay_len = delay_len / 2.0f;
 }
 
 void Pluck::set_decay(float decay_db_per_sec) {
-	float f0      = static_cast<float>(frequency);
-	float fs      = static_cast<float>(Config::SAMPLE_RATE);
+	float f0 = static_cast<float>(frequency);
+	float fs = static_cast<float>(Config::SAMPLE_RATE);
+	// G: per-cycle gain target derived from the requested dB/s decay rate
+	// A: one-pole filter gain at f0; dividing by A compensates for its frequency-dependent
+	// attenuation so the measured decay matches the requested rate. 0.4995 cap prevents waveguide
+	// instability.
 	float G       = std::pow(10.0f, -decay_db_per_sec / (20.0f * f0));
 	float A       = std::cos(std::numbers::pi_v<float> * f0 / fs);
 	feedback_gain = std::min((G / A) * 0.5f, 0.4995f);
@@ -20,17 +26,17 @@ void Pluck::trigger(float pluck_pos, float pickup_pos, float amplitude) {
 	pickup_pos_norm = pickup_pos;
 
 	int string_len = static_cast<int>(std::ceil(half_delay_len));
-	if (string_len < 2) string_len = 2; // Ensure minimum for a valid triangle pulse.
+	if (string_len < 2) string_len = 2;
 
 	int peak = std::max(1, std::min(static_cast<int>(pluck_pos * string_len), string_len - 1));
 
-	// triangle init scaled by amplitude
 	for (int i = 0; i < peak; ++i)
 		delay_line[i] = amplitude * static_cast<float>(i) / static_cast<float>(peak);
 	for (int i = peak; i < string_len; ++i)
 		delay_line[i] =
 		    amplitude * static_cast<float>(string_len - i) / static_cast<float>(string_len - peak);
 
+	// mirror the first half into the second half to seed both traveling wave directions
 	for (int i = 0; i < string_len; ++i)
 		delay_line[string_len + i] = delay_line[string_len - 1 - i];
 
@@ -65,12 +71,13 @@ void Pluck::snapshot(WaveguideSnapshot &out) const {
 	out.pickup_pos = pickup_pos_norm;
 	out.active     = true;
 
-	float wp = static_cast<float>(write_pos) - 1.0f; // write_pos is the next-write slot; wp-1 is the most recent valid sample
+	// write_pos is the next-write slot; wp-1 is the most recent valid sample
+	float wp = static_cast<float>(write_pos) - 1.0f;
 	for (int i = 0; i < WaveguideSnapshot::POINTS; ++i) {
-		float x         = static_cast<float>(i) / static_cast<float>(WaveguideSnapshot::POINTS - 1)
-		                * half_delay_len;
-		float right_going = interpolate_delay_line(wp - x);
-		float left_going  = interpolate_delay_line(wp - 2.0f * half_delay_len + x);
+		float x = static_cast<float>(i) / static_cast<float>(WaveguideSnapshot::POINTS - 1)
+		    * half_delay_len;
+		float right_going   = interpolate_delay_line(wp - x);
+		float left_going    = interpolate_delay_line(wp - 2.0f * half_delay_len + x);
 		out.displacement[i] = right_going - left_going;
 	}
 }
@@ -89,14 +96,13 @@ void Pluck::process(std::span<float> buf) {
 		float bwd_read_pos    = static_cast<float>(write_pos) - bwd_delay_samps;
 		float sample_bwd      = interpolate_delay_line(bwd_read_pos);
 
-		// Combine forward and backward waves to simulate a pickup.
+		// combine forward and backward waves to simulate a pickup
 		float output = (sample_fwd + sample_bwd) * 0.5f;
 
-		// Reads from `delay_len` samples back to get feedback value
 		float read_pos  = static_cast<float>(write_pos) - delay_len;
 		float from_line = interpolate_delay_line(read_pos);
 
-		// one pole LPF + feedback gain to simulate string damping
+		// one-pole LPF + feedback gain simulates string damping
 		delay_line[write_pos] = (from_line + prev) * feedback_gain;
 		prev                  = from_line;
 		write_pos             = (write_pos + 1) & (MAX_DELAY - 1);

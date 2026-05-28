@@ -76,7 +76,7 @@ int main() {
 	dispatcher.on("reset", [&params, &web](std::string_view /*msg*/) {
 		params.reset_to_defaults();
 
-		// Broadcast the new values to the UI so the knobs update visually
+		// broadcast new values so all UI knobs update visually
 		for (int i = 0; i < static_cast<int>(SynthParams::ParamId::COUNT); ++i) {
 			auto id = static_cast<SynthParams::ParamId>(i);
 			auto d  = params.descriptor(id);
@@ -101,14 +101,14 @@ int main() {
 	dispatcher.on("save_preset", [&params, &broadcast_presets](std::string_view msg) {
 		std::string name = MsgParser::extract_string(msg, "name");
 		params.save_preset(name);
-		broadcast_presets(); // Refresh UI list for everyone
+		broadcast_presets();
 	});
 
 	dispatcher.on("delete_preset", [&params, &broadcast_presets](std::string_view msg) {
 		std::string name = MsgParser::extract_string(msg, "name");
 		if (!name.empty()) {
 			params.delete_preset(name);
-			broadcast_presets(); // Update the UI list
+			broadcast_presets();
 		}
 	});
 
@@ -117,7 +117,6 @@ int main() {
 
 	web.set_fft_acc(&audio.get_fft_acc());
 
-	// audio.start();
 	midi.start();
 	web.start(Config::UI_PORT);
 
@@ -126,13 +125,11 @@ int main() {
 		if (audio.open()) {
 			web.reset_fft();
 			audio.start();
-			// Monitor the engine
 			while (audio.is_running() && !should_quit.load()) {
 				std::this_thread::sleep_for(std::chrono::milliseconds(100));
 			}
 			audio.stop();
 		} else {
-			// Wait and retry if no device is found
 			std::this_thread::sleep_for(std::chrono::seconds(1));
 		}
 	}

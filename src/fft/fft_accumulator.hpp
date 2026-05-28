@@ -1,10 +1,8 @@
-// fft/fft_accumulator.hpp
 #pragma once
 #include <array>
 #include <atomic>
 
 // SPSC float ring buffer for shipping audio samples to the FFT thread.
-// Write one mono sample per frame from the audio thread.
 template <int N> class FftAccumulator {
 public:
 	// Returns false and drops the sample if full.

@@ -1,4 +1,3 @@
-// fft/fft_processor.hpp
 #pragma once
 #include "../config.hpp"
 #include "../web/messages.hpp"

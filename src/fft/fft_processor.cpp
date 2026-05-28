@@ -76,7 +76,7 @@ template <int N> std::optional<SpectrumMsg> FftProcessor::process(FftAccumulator
 					float db1     = bin_to_db(out_buf[2 * k1], out_buf[2 * k1 + 1]);
 					msg.bins[b]   = db0 * (1.0f - fract) + db1 * fract;
 				}
-				result = msg; // overwrite — caller receives the most recent frame
+				result = msg; // overwrite: caller receives the most recent frame
 			}
 		}
 	}
